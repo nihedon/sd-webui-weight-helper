@@ -1,0 +1,84 @@
+#weight-helper .slider-container {
+    display: flex;
+    gap: 4px;
+}
+#weight-helper .slider-container-type {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+    padding: 4px;
+    box-shadow: var(--block-shadow);
+    border: 1px solid var(--block-border-color) !important;
+    border-radius: 8px !important;
+}
+#weight-helper .slider-container-group {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 4px;
+    box-shadow: var(--block-shadow);
+    border: 1px solid var(--block-border-color) !important;
+    border-radius: 8px !important;
+}
+#weight-helper .slider-container-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+#weight-helper .slider-container-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+#weight-helper label {
+    font-family: var(--font);
+    font-size: var(--section-header-text-size);
+    padding: 0 5px 0 5px;
+}
+#weight-helper input.slider {
+    width: 160px;
+    margin: 0;
+    accent-color: var(--slider-color);
+}
+#weight-helper input.value {
+    width: 4em;
+    padding: 0;
+    margin: 0;
+    display: block;
+    position: relative;
+    outline: none!important;
+    box-shadow: var(--input-shadow);
+    border: var(--input-border-width) solid var(--input-border-color);
+    border-radius: var(--input-radius);
+    background: var(--input-background-fill);
+    color: var(--body-text-color);
+    font-size: var(--input-text-size);
+    line-height: var(--line-sm);
+    text-align: center;
+}
+#weight-helper select {
+    outline: none;
+    padding: var(--input-padding);
+    border: var(--input-border-width) solid var(--border-color-primary);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    border-radius: var(--input-radius);
+    background: var(--input-background-fill);
+}
+#weight-helper select:focus {
+    box-shadow: var(--input-shadow-focus);
+    border-color: var(--input-border-color-focus);
+}
+#weight-helper.context-menu {
+    color: var(--body-text-color);
+    background: var(--body-background-fill);
+    border: var(--input-border-width) solid var(--border-color-primary);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    position: absolute;
+    padding: 10px;
+    z-index: 1000;
+}
