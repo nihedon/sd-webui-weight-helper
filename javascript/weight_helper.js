@@ -64,9 +64,9 @@ class WeightContextMenu {
 
         this.type = type;
         this.name = name;
-        this.#initWeights(weightBlocks);
 
         this.#loadLbwPresets();
+        this.#initWeights(weightBlocks);
         this.#initContextMenuDom();
     }
 
@@ -106,6 +106,11 @@ class WeightContextMenu {
                 } else {
                     weightType = weightTypes[i];
                     blocks = weightBlocks[0].split(',');
+                }
+                if (weightType == "lbw") {
+                    if (blocks[0] in this.lbwPresetsMap) {
+                        blocks = this.lbwPresetsMap[blocks[0]].split(',');
+                    }
                 }
                 for (let j = 0; j < blocks.length; j++) {
                     this.weightBlocksMap[weightType][j] = parseFloat(blocks[j]) * 100;
