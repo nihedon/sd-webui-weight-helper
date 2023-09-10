@@ -364,20 +364,21 @@ function init(tab, tabId) {
             return;
         }
         let selectedText = window.getSelection().toString();
+        if (selectedText) {
+            return;
+        }
         const prompt = e.target.value;
         let tmpSelectionStart = e.target.selectionStart;
-        if (!selectedText) {
-            const lCar = prompt.lastIndexOf("<", tmpSelectionStart - 1);
-            const rCar = prompt.indexOf(">", tmpSelectionStart);
-            if (lCar < 0 || rCar < 0) {
-                return;
-            }
-            selectedText = prompt.substring(lCar, rCar + 1);
-            if ((selectedText.match(/</g) || []).length != 1 || (selectedText.match(/>/g) || []).length != 1) {
-                return;
-            }
-            tmpSelectionStart = lCar;
+        const lCar = prompt.lastIndexOf("<", tmpSelectionStart - 1);
+        const rCar = prompt.indexOf(">", tmpSelectionStart);
+        if (lCar < 0 || rCar < 0) {
+            return;
         }
+        selectedText = prompt.substring(lCar, rCar + 1);
+        if ((selectedText.match(/</g) || []).length != 1 || (selectedText.match(/>/g) || []).length != 1) {
+            return;
+        }
+        tmpSelectionStart = lCar;
         const match = REGEX.exec(selectedText);
         if (match) {
             const type = match[1].toLowerCase();
