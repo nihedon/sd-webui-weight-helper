@@ -155,12 +155,17 @@ class WeightContextMenu {
                 opt.value = "";
                 opt.text = "";
                 lbwPresetSelect.appendChild(opt);
+
                 for (const key of Object.keys(this.lbwPresetsMap)) {
                     const opt = document.createElement('option');
                     opt.value = this.lbwPresetsMap[key];
                     opt.text = key;
                     lbwPresetSelect.appendChild(opt);
                 }
+
+                const lbwValues = this.weightBlocksMap[weightTypeKey].map(v => v / 100).join(",");
+                lbwPresetSelect.value = lbwValues;
+
                 sliderContainerGroups.appendChild(lbwPresetSelect);
                 lbwPresetSelect.addEventListener("change", (e) => {
                     if (e.target.value == "") {
