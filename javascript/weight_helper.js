@@ -267,12 +267,22 @@ class WeightContextMenu {
     }
 
     #update(lbwValues) {
+        const defaultMap = {}
+        for (const weightType of Object.keys(this.weightInfoMap)) {
+            defaultMap[weightType] = false;
+            if (weightType in this.weightBlocksMap) {
+                const values = this.weightBlocksMap[weightType];
+                if (values.every(val => val == this.weightInfoMap[weightType].default)) {
+                    defaultMap[weightType] = true;
+                }
+            }
+        }
         let updatedText = `<${this.type}:${this.name}`;
         for (const weightType of Object.keys(this.weightInfoMap)) {
             if (weightType in this.weightBlocksMap) {
-                const values = this.weightBlocksMap[weightType];
                 if (weightType != "te") {
-                    if (!values.every(val => val == this.weightInfoMap[weightType].default)) {
+                    if (!defaultMap[weightType]
+                            || weightType == "lbw" && (!defaultMap["unet"] || !defaultMap["dyn"])) {
                         let rateValues;
                         if (weightType == "lbw") {
                             rateValues = lbwValues;
