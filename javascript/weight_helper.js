@@ -127,6 +127,13 @@ class WeightContextMenu {
 
         for (const weightTypeKey of Object.keys(this.weightInfoMap)) {
 
+            const dispSliderOptName = `weight_helper_disp_${weightTypeKey}_slider`;
+            if (dispSliderOptName in opts) {
+                if (!opts[dispSliderOptName]) {
+                    continue;
+                }
+            }
+
             const weightInfo = this.weightInfoMap[weightTypeKey];
             const weightBlockInfo = weightInfo[this.type];
 
