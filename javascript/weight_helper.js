@@ -56,6 +56,8 @@ class WeightContextMenu {
     sliders = {}
     updowns = {}
 
+    usingExecCommand = false;
+
     constructor(tabId, textarea, selectionStart, selectionEnd, type, name, weightBlocks) {
         this.tabId = tabId;
         this.textarea = textarea;
@@ -68,6 +70,14 @@ class WeightContextMenu {
         this.#loadLbwPresets();
         this.#initWeights(weightBlocks);
         this.#initContextMenuDom();
+        
+        if (opts.weight_helper_using_execCommand) {
+            if (typeof document.execCommand === 'function') {
+                this.usingExecCommand = true;
+            } else {
+                console.warn("execCommand is not supported.");
+            }
+        }
     }
 
     #loadLbwPresets() {
@@ -181,8 +191,11 @@ class WeightContextMenu {
                     for (const i in this.updowns[weightTypeKey]) {
                         this.updowns[weightTypeKey][i].value = values[i] / 100;
                     }
-                    const lbwValues = this.weightBlocksMap[weightTypeKey].map(v => v / 100).join(",");
-                    this.#update(lbwValues);
+                    if (!this.usingExecCommand) {
+                        const lbwValues = this.weightBlocksMap[weightTypeKey].map(v => v / 100).join(",");
+                        const updatedText = this.#getUpdatedText(lbwValues);
+                        this.#update(updatedText);
+                    }
                 });
             }
 
@@ -228,7 +241,10 @@ class WeightContextMenu {
                             lbwPresetSelect.selectedIndex = 0;
                         }
                     }
-                    this.#update(lbwValues);
+                    if (!this.usingExecCommand) {
+                        const updatedText = this.#getUpdatedText(lbwValues);
+                        this.#update(updatedText);
+                    }
                 });
                 updown.addEventListener('input', (e) => {
                     const fVal = parseFloat(e.target.value);
@@ -243,7 +259,10 @@ class WeightContextMenu {
                             lbwPresetSelect.selectedIndex = 0;
                         }
                     }
-                    this.#update(lbwValues);
+                    if (!this.usingExecCommand) {
+                        const updatedText = this.#getUpdatedText(lbwValues);
+                        this.#update(updatedText);
+                    }
                 });
 
                 const sliderContainer = document.createElement('div');
@@ -278,7 +297,7 @@ class WeightContextMenu {
         return valueText;
     }
 
-    #update(lbwValues) {
+    #getUpdatedText(lbwValues) {
         const defaultMap = {}
         for (const weightType of Object.keys(this.weightInfoMap)) {
             defaultMap[weightType] = false;
@@ -313,9 +332,18 @@ class WeightContextMenu {
             }
         }
         updatedText += ">";
+        return updatedText;
+    }
 
+    #update(updatedText) {
         this.textarea.value = this.textarea.value.substring(0, this.lastSelectionStart) + updatedText + this.textarea.value.substring(this.lastSelectionEnd);
         this.lastSelectionEnd = this.lastSelectionStart + updatedText.length;
+    }
+
+    #updateWithExecCommand(updatedText) {
+        this.textarea.setSelectionRange(1, 4);
+        this.textarea.setSelectionRange(this.lastSelectionStart, this.lastSelectionEnd);
+        document.execCommand("insertText", false, updatedText);
     }
 
     show(top, left) {
@@ -336,10 +364,15 @@ class WeightContextMenu {
             return;
         }
         if (this.customContextMenu.parentNode == document.body) {
-            this.textarea.dispatchEvent(new InputEvent('input', {
-                bubbles: true,
-                cancelable: true
-            }));
+            if (!this.usingExecCommand) {
+                this.textarea.dispatchEvent(new InputEvent('input', {
+                    bubbles: true,
+                    cancelable: true
+                }));
+            } else {
+                const updatedText = this.#getUpdatedText(this.weightBlocksMap["lbw"].map(v => v / 100).join(","));
+                this.#updateWithExecCommand(updatedText);
+            }
             document.body.removeChild(this.customContextMenu);
             window.removeEventListener("click", this.close);
         }

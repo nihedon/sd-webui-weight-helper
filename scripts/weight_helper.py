@@ -4,6 +4,8 @@ from modules import script_callbacks, shared
 def on_ui_settings():
     section = ('weight_helper', 'Weight Helper')
     shared.opts.add_option('weight_helper_enabled', shared.OptionInfo(True, 'Enabled', section=section))
+    shared.opts.add_option('weight_helper_using_execCommand', shared.OptionInfo(False, 'Using the deprecated execCommand function to replace text.', section=section) \
+            .info("In exchange for no longer being updated in real-time, you can use 'undo' to revert the text to its previous state."))
     shared.opts.add_option("weight_helper_te_min", shared.OptionInfo(0, "TEnc min value", gr.Number, section=section))
     shared.opts.add_option("weight_helper_te_max", shared.OptionInfo(1, "TEnc max value", gr.Number, section=section))
     shared.opts.add_option("weight_helper_te_step", shared.OptionInfo(0.05, "TEnc step", gr.Number, section=section))
