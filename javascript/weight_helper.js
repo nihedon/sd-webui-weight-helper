@@ -212,6 +212,7 @@ class WeightContextMenu {
                     sliderContainerGroup.classList.add('slider-container-group');
 
                     if (i in weightBlockInfo.labels) {
+                        sliderContainerGroup.classList.add('border');
                         const label = document.createElement('label');
                         label.textContent = weightBlockInfo.labels[i];
                         sliderContainerGroup.appendChild(label);
