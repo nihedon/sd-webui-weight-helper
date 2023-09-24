@@ -342,6 +342,7 @@ class WeightContextMenu {
     }
 
     #updateWithExecCommand(updatedText) {
+        this.textarea.focus();
         this.textarea.setSelectionRange(1, 4);
         this.textarea.setSelectionRange(this.lastSelectionStart, this.lastSelectionEnd);
         document.execCommand("insertText", false, updatedText);
