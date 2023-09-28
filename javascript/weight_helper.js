@@ -41,6 +41,10 @@ class WeightContextMenu {
         }
     };
 
+    offsetX = 0;
+    offsetY = 0;
+    isDragging = false;
+
     lbwPresetsMap = {}
     lbwPresetsValueKeyMap = {}
 
@@ -70,7 +74,7 @@ class WeightContextMenu {
         this.#loadLbwPresets();
         this.#initWeights(weightBlocks);
         this.#initContextMenuDom();
-        
+
         if (opts.weight_helper_using_execCommand) {
             if (typeof document.execCommand === 'function') {
                 this.usingExecCommand = true;
@@ -134,6 +138,33 @@ class WeightContextMenu {
         this.customContextMenu = document.createElement('div');
         this.customContextMenu.id = 'weight-helper';
         this.customContextMenu.classList.add('context-menu');
+
+        const header = document.createElement('div');
+        header.classList.add("draggable-header");
+        header.textContent = "Wight Helper";
+        this.customContextMenu.appendChild(header);
+
+        this.customContextMenu.addEventListener('mousedown', (e) => {
+            if (e.target.classList.contains('draggable-header')) {
+                this.isDragging = true;
+                this.offsetX = e.clientX - this.customContextMenu.getBoundingClientRect().left;
+                this.offsetY = e.clientY - this.customContextMenu.getBoundingClientRect().top;
+            }
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!this.isDragging) return;
+
+            const x = e.clientX - this.offsetX;
+            const y = e.clientY - this.offsetY;
+
+            this.customContextMenu.style.left = x + 'px';
+            this.customContextMenu.style.top = y + 'px';
+        });
+
+        document.addEventListener('mouseup', () => {
+            this.isDragging = false;
+        });
 
         for (const weightTypeKey of Object.keys(this.weightInfoMap)) {
 
