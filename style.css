@@ -11,6 +11,7 @@
 }
 #weight-helper .slider-container {
     display: flex;
+    align-items: center;
     gap: 4px;
 }
 #weight-helper .slider-container-type {
@@ -71,6 +72,7 @@
     text-align: center;
 }
 #weight-helper select {
+    color: var(--body-text-color);
     outline: none;
     padding: calc(var(--input-padding) - 5px);
     border: var(--input-border-width) solid var(--border-color-primary);
