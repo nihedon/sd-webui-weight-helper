@@ -141,11 +141,15 @@ class WeightContextMenu {
 
         const header = document.createElement('div');
         header.classList.add("draggable-header");
-        header.textContent = "Wight Helper";
+
+        const headerLabel = document.createElement('label');
+        headerLabel.textContent = "Weight Helper";
+        header.appendChild(headerLabel);
+
         this.customContextMenu.appendChild(header);
 
         this.customContextMenu.addEventListener('mousedown', (e) => {
-            if (e.target.classList.contains('draggable-header')) {
+            if (e.target.closest('.draggable-header')) {
                 this.isDragging = true;
                 this.offsetX = e.clientX - this.customContextMenu.getBoundingClientRect().left;
                 this.offsetY = e.clientY - this.customContextMenu.getBoundingClientRect().top;

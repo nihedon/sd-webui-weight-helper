@@ -4,10 +4,14 @@
 #weight-helper .draggable-header {
     background-color: var(--neutral-200);
     margin-bottom: 4px;
-    font-size: calc(var(--section-header-text-size) - 2px);
     color: var(--neutral-400);
-    padding: 2px 4px;
     user-select: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+#weight-helper .draggable-header label {
+    padding: 3px 6px;
 }
 #weight-helper .slider-container {
     display: flex;
@@ -56,7 +60,8 @@
     accent-color: var(--slider-color);
 }
 #weight-helper input.value {
-    width: 4em;
+    width: 4.5em;
+    height: 1.4em !important;
     padding: 0;
     margin: 0;
     display: block;
