@@ -1,5 +1,7 @@
 'use strict';
 
+const weight_helper_history = {};
+
 class WeightContextMenu {
 
     static SUPPORT_TYPE = new Set(["lora", "lyco"]);
@@ -54,6 +56,9 @@ class WeightContextMenu {
 
     lastSelectionStart = undefined;
     lastSelectionEnd = undefined;
+    lastText = undefined;
+
+    historyIndex = 0;
 
     customContextMenu = undefined;
 
@@ -67,12 +72,23 @@ class WeightContextMenu {
         this.textarea = textarea;
         this.lastSelectionStart = selectionStart;
         this.lastSelectionEnd = selectionEnd;
+        this.lastText = this.textarea.value.substring(this.lastSelectionStart, this.lastSelectionEnd);
 
         this.type = type;
         this.name = name;
 
         this.#loadLbwPresets();
         this.#initWeights(weightBlocks);
+
+        if (!(name in weight_helper_history)) {
+            const history = {};
+            WeightContextMenu.#copyWeight(this.weightBlocksMap, history);
+
+            weight_helper_history[name] = [];
+            weight_helper_history[name].push(history);
+        }
+        this.historyIndex = weight_helper_history[name].length - 1;
+
         this.#initContextMenuDom();
 
         if (opts.weight_helper_using_execCommand) {
@@ -145,6 +161,70 @@ class WeightContextMenu {
         const headerLabel = document.createElement('label');
         headerLabel.textContent = "Weight Helper";
         header.appendChild(headerLabel);
+
+        const pageWrapper = document.createElement('div');
+        pageWrapper.classList.add("page");
+        header.appendChild(pageWrapper);
+
+        const pageLeft = document.createElement('span');
+        pageLeft.textContent = "▼";
+        pageLeft.classList.add("icon");
+        pageLeft.classList.add("icon-left");
+        pageWrapper.appendChild(pageLeft);
+        pageLeft.addEventListener("click", () => {
+            if (this.historyIndex == 0) {
+                return;
+            }
+            this.historyIndex--;
+            pageLabel.textContent = (this.historyIndex + 1) + "/" + weight_helper_history[this.name].length;
+            WeightContextMenu.#copyWeight(weight_helper_history[this.name][this.historyIndex], this.weightBlocksMap);
+            Object.keys(this.weightBlocksMap).map(key => {
+                for (const idx in this.weightBlocksMap[key]) {
+                    const fVal = this.weightBlocksMap[key][idx];
+                    if (key in this.sliders) {
+                        this.sliders[key][idx].value = fVal;
+                        this.updowns[key][idx].value = fVal / 100;
+                    }
+                }
+            });
+            if (!this.usingExecCommand) {
+                const lbwValues = this.weightBlocksMap["lbw"].map(v => v / 100).join(",");
+                const updatedText = this.#getUpdatedText(lbwValues);
+                this.#update(updatedText);
+            }
+        });
+
+        const pageLabel = document.createElement('label');
+        pageLabel.textContent = (this.historyIndex + 1) + "/" + weight_helper_history[this.name].length;
+        pageWrapper.appendChild(pageLabel);
+
+        const pageRight = document.createElement('span');
+        pageRight.textContent = "▼";
+        pageRight.classList.add("icon");
+        pageRight.classList.add("icon-right");
+        pageWrapper.appendChild(pageRight);
+        pageRight.addEventListener("click", () => {
+            if (this.historyIndex == weight_helper_history[this.name].length - 1) {
+                return;
+            }
+            this.historyIndex++;
+            pageLabel.textContent = (this.historyIndex + 1) + "/" + weight_helper_history[this.name].length;
+            WeightContextMenu.#copyWeight(weight_helper_history[this.name][this.historyIndex], this.weightBlocksMap);
+            Object.keys(this.weightBlocksMap).map(key => {
+                for (const idx in this.weightBlocksMap[key]) {
+                    const fVal = this.weightBlocksMap[key][idx];
+                    if (key in this.sliders) {
+                        this.sliders[key][idx].value = fVal;
+                        this.updowns[key][idx].value = fVal / 100;
+                    }
+                }
+            });
+            if (!this.usingExecCommand) {
+                const lbwValues = this.weightBlocksMap["lbw"].map(v => v / 100).join(",");
+                const updatedText = this.#getUpdatedText(lbwValues);
+                this.#update(updatedText);
+            }
+        });
 
         this.customContextMenu.appendChild(header);
 
@@ -333,6 +413,16 @@ class WeightContextMenu {
         return valueText;
     }
 
+    static #copyWeight(srcWeight, destWeight) {
+        Object.keys(srcWeight).map(key => {
+            destWeight[key] = [];
+            for (const idx in srcWeight[key]) {
+                const fVal = srcWeight[key][idx];
+                destWeight[key][idx] = fVal;
+            }
+        });
+    }
+
     #getUpdatedText(lbwValues) {
         const defaultMap = {}
         for (const weightType of Object.keys(this.weightInfoMap)) {
@@ -378,7 +468,6 @@ class WeightContextMenu {
 
     #updateWithExecCommand(updatedText) {
         this.textarea.focus();
-        this.textarea.setSelectionRange(1, 4);
         this.textarea.setSelectionRange(this.lastSelectionStart, this.lastSelectionEnd);
         document.execCommand("insertText", false, updatedText);
     }
@@ -401,14 +490,20 @@ class WeightContextMenu {
             return;
         }
         if (this.customContextMenu.parentNode == document.body) {
+            const updatedText = this.#getUpdatedText(this.weightBlocksMap["lbw"].map(v => v / 100).join(","));
             if (!this.usingExecCommand) {
                 this.textarea.dispatchEvent(new InputEvent('input', {
                     bubbles: true,
                     cancelable: true
                 }));
+                if (this.lastText != updatedText) {
+                    weight_helper_history[this.name].push(this.weightBlocksMap);
+                }
             } else {
-                const updatedText = this.#getUpdatedText(this.weightBlocksMap["lbw"].map(v => v / 100).join(","));
-                this.#updateWithExecCommand(updatedText);
+                if (this.lastText != updatedText) {
+                    this.#updateWithExecCommand(updatedText);
+                    weight_helper_history[this.name].push(this.weightBlocksMap);
+                }
             }
             document.body.removeChild(this.customContextMenu);
             window.removeEventListener("click", this.close);
