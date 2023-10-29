@@ -239,8 +239,8 @@ class WeightContextMenu {
         document.addEventListener('mousemove', (e) => {
             if (!this.isDragging) return;
 
-            const x = e.clientX - this.offsetX;
-            const y = e.clientY - this.offsetY;
+            const x = e.clientX - this.offsetX + window.scrollX;
+            const y = e.clientY - this.offsetY + window.scrollY;
 
             this.customContextMenu.style.left = x + 'px';
             this.customContextMenu.style.top = y + 'px';
