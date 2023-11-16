@@ -2,9 +2,9 @@
     user-select: none;
 }
 #weight-helper .draggable-header {
-    background-color: var(--neutral-200);
+    background-color: var(--border-color-primary);
     margin-bottom: 4px;
-    color: var(--neutral-400);
+    color: var(--block-label-text-color);
     user-select: none;
     display: flex;
     justify-content: space-between;
@@ -101,8 +101,8 @@
 #weight-helper.context-menu {
     color: var(--body-text-color);
     background: var(--body-background-fill);
-    border: var(--input-border-width) solid var(--neutral-300);
-    box-shadow: 3px 3px 7px 0 rgba(0, 0, 0, 0.2);
+    border: var(--input-border-width) solid var(--border-color-primary);
+    box-shadow: 0px 0px 7px 0 rgba(0, 0, 0, 0.2);
     display: flex;
     flex-direction: column;
     position: absolute;
