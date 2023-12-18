@@ -535,7 +535,11 @@ var lastWeightInfo = undefined;
 
 function init(tab, tabId) {
     const textarea = tab.querySelector(`#${tabId}_prompt textarea`);
+    const lbwPreset = gradioApp().getElementById("lbw_ratiospreset");
     textarea.addEventListener('contextmenu', function (e) {
+        if (!lbwPreset) {
+            return;
+        }
         if (!opts.weight_helper_enabled) {
             return;
         }
