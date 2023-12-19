@@ -25,6 +25,18 @@ class WeightContextMenu {
             lora: {count: 1, labels: {}},
             lyco: {count: 1, labels: {}}
         },
+        start: {
+            label: "Start",
+            min: 0, max: undefined, default: 0, step: 100,
+            lora: {count: 1, labels: {}},
+            lyco: {count: 1, labels: {}}
+        },
+        stop: {
+            label: "Stop",
+            min: 0, max: undefined, default: undefined, step: 100,
+            lora: {count: 1, labels: {}},
+            lyco: {count: 1, labels: {}}
+        },
         lbw: {
             label: "LBW",
             min: opts.weight_helper_lbw_min * 100, max: opts.weight_helper_lbw_max * 100, default: 100, step: opts.weight_helper_lbw_step * 100,
@@ -115,6 +127,13 @@ class WeightContextMenu {
     }
 
     #initWeights(weightBlocks) {
+        const samplingSteps = gradioApp().getElementById("txt2img_steps").querySelector("input");
+        if (samplingSteps) {
+            const samplingStepsValue = parseInt(samplingSteps.value) * 100;
+            this.weightInfoMap["start"]["max"] = samplingStepsValue;
+            this.weightInfoMap["stop"]["max"] = samplingStepsValue;
+            this.weightInfoMap["stop"]["default"] = samplingStepsValue;
+        }
         for (const weightKey of Object.keys(this.weightInfoMap)) {
             this.weightBlocksMap[weightKey] = [];
             for (let i = 0; i < this.weightInfoMap[weightKey][this.type]["count"]; i++) {
@@ -124,26 +143,32 @@ class WeightContextMenu {
         }
 
         if (weightBlocks) {
-            const weightTypes = ["te", "unet", "dyn"];
+            const keyTypes = ["te", "unet", "dyn"];
             const weightBlocksArray = weightBlocks.split(":");
             for (let i = 0; i < weightBlocksArray.length; i++) {
                 let weightBlocks = weightBlocksArray[i].split("=");
-                let weightType;
+                let keyType;
                 let blocks;
                 if (weightBlocks.length > 1) {
-                    weightType = weightBlocks[0].toLowerCase();
+                    keyType = weightBlocks[0].toLowerCase();
                     blocks = weightBlocks[1].split(',');
                 } else {
-                    weightType = weightTypes[i];
+                    keyType = keyTypes[i];
                     blocks = weightBlocks[0].split(',');
                 }
-                if (weightType == "lbw") {
+                if (keyType == "lbw") {
                     if (blocks[0] in this.lbwPresetsMap) {
                         blocks = this.lbwPresetsMap[blocks[0]].split(',');
                     }
                 }
                 for (let j = 0; j < blocks.length; j++) {
-                    this.weightBlocksMap[weightType][j] = parseFloat(blocks[j]) * 100;
+                    if (keyType == "step") {
+                        const startStop = blocks[j].split('-');
+                        this.weightBlocksMap["start"][j] = parseInt(startStop[0]) * 100;
+                        this.weightBlocksMap["stop"][j] = parseInt(startStop[1]) * 100;
+                    } else {
+                        this.weightBlocksMap[keyType][j] = parseFloat(blocks[j]) * 100;
+                    }
                 }
             }
         }
@@ -423,34 +448,34 @@ class WeightContextMenu {
 
     #getUpdatedText(lbwValues) {
         const defaultMap = {};
-        for (const weightType of Object.keys(this.weightInfoMap)) {
-            defaultMap[weightType] = false;
-            if (weightType in this.weightBlocksMap) {
-                const values = this.weightBlocksMap[weightType];
-                if (values.every(val => val == this.weightInfoMap[weightType].default)) {
-                    defaultMap[weightType] = true;
+        for (const keyType of Object.keys(this.weightInfoMap)) {
+            defaultMap[keyType] = false;
+            if (keyType in this.weightBlocksMap) {
+                const values = this.weightBlocksMap[keyType];
+                if (values.every(val => val == this.weightInfoMap[keyType].default)) {
+                    defaultMap[keyType] = true;
                 }
             }
         }
         let updatedText = `<${this.type}:${this.name}`;
-        for (const weightType of Object.keys(this.weightInfoMap)) {
-            if (weightType in this.weightBlocksMap) {
-                if (weightType != "te") {
-                    if (!defaultMap[weightType] ||
-                            weightType == "lbw" && (!defaultMap["unet"] || !defaultMap["dyn"])) {
+        for (const keyType of Object.keys(this.weightInfoMap)) {
+            if (keyType in this.weightBlocksMap) {
+                if (keyType != "te") {
+                    if (!defaultMap[keyType] ||
+                            keyType == "lbw" && (!defaultMap["unet"] || !defaultMap["dyn"])) {
                         let rateValues;
-                        if (weightType == "lbw") {
+                        if (keyType == "lbw") {
                             rateValues = lbwValues;
                             if (lbwValues in this.lbwPresetsValueKeyMap) {
                                 rateValues = this.lbwPresetsValueKeyMap[lbwValues];
                             }
                         } else {
-                            rateValues = this.weightBlocksMap[weightType].map(v => v / 100).join(",");
+                            rateValues = this.weightBlocksMap[keyType].map(v => v / 100).join(",");
                         }
-                        updatedText += `:${weightType}=${rateValues}`;
+                        updatedText += `:${keyType}=${rateValues}`;
                     }
                 } else {
-                    const rateValues = this.weightBlocksMap[weightType].map(v => v / 100).join(",");
+                    const rateValues = this.weightBlocksMap[keyType].map(v => v / 100).join(",");
                     updatedText += `:${rateValues}`;
                 }
             }
