@@ -10,20 +10,20 @@ class WeightContextMenu {
         te: {
             label: "TEnc",
             min: opts.weight_helper_te_min * 100, max: opts.weight_helper_te_max * 100, default: 100, step: opts.weight_helper_te_step * 100,
-            lora: { count: 1, labels: {} },
-            lyco: { count: 1, labels: {} }
+            lora: {count: 1, labels: {}},
+            lyco: {count: 1, labels: {}}
         },
         unet: {
             label: "UNet",
             min: opts.weight_helper_unet_min * 100, max: opts.weight_helper_unet_max * 100, default: 0, step: opts.weight_helper_unet_step * 100,
-            lora: { count: 1, labels: {} },
-            lyco: { count: 1, labels: {} }
+            lora: {count: 1, labels: {}},
+            lyco: {count: 1, labels: {}}
         },
         dyn: {
             label: "Dyn",
             min: opts.weight_helper_dyn_min * 100, max: opts.weight_helper_dyn_max * 100, default: 25600, step: opts.weight_helper_dyn_step * 100,
-            lora: { count: 1, labels: {} },
-            lyco: { count: 1, labels: {} }
+            lora: {count: 1, labels: {}},
+            lyco: {count: 1, labels: {}}
         },
         lbw: {
             label: "LBW",
@@ -47,12 +47,12 @@ class WeightContextMenu {
     offsetY = 0;
     isDragging = false;
 
-    lbwPresetsMap = {}
-    lbwPresetsValueKeyMap = {}
+    lbwPresetsMap = {};
+    lbwPresetsValueKeyMap = {};
 
     type = undefined;
     name = undefined;
-    weightBlocksMap = {}
+    weightBlocksMap = {};
 
     lastSelectionStart = undefined;
     lastSelectionEnd = undefined;
@@ -62,8 +62,8 @@ class WeightContextMenu {
 
     customContextMenu = undefined;
 
-    sliders = {}
-    updowns = {}
+    sliders = {};
+    updowns = {};
 
     usingExecCommand = false;
 
@@ -116,7 +116,7 @@ class WeightContextMenu {
 
     #initWeights(weightBlocks) {
         for (const weightKey of Object.keys(this.weightInfoMap)) {
-            this.weightBlocksMap[weightKey] = []
+            this.weightBlocksMap[weightKey] = [];
             for (let i = 0; i < this.weightInfoMap[weightKey][this.type]["count"]; i++) {
                 const def = this.weightInfoMap[weightKey].default;
                 this.weightBlocksMap[weightKey].push(def);
@@ -424,7 +424,7 @@ class WeightContextMenu {
     }
 
     #getUpdatedText(lbwValues) {
-        const defaultMap = {}
+        const defaultMap = {};
         for (const weightType of Object.keys(this.weightInfoMap)) {
             defaultMap[weightType] = false;
             if (weightType in this.weightBlocksMap) {
@@ -438,8 +438,8 @@ class WeightContextMenu {
         for (const weightType of Object.keys(this.weightInfoMap)) {
             if (weightType in this.weightBlocksMap) {
                 if (weightType != "te") {
-                    if (!defaultMap[weightType]
-                            || weightType == "lbw" && (!defaultMap["unet"] || !defaultMap["dyn"])) {
+                    if (!defaultMap[weightType] ||
+                            weightType == "lbw" && (!defaultMap["unet"] || !defaultMap["dyn"])) {
                         let rateValues;
                         if (weightType == "lbw") {
                             rateValues = lbwValues;
@@ -447,12 +447,12 @@ class WeightContextMenu {
                                 rateValues = this.lbwPresetsValueKeyMap[lbwValues];
                             }
                         } else {
-                            rateValues = this.weightBlocksMap[weightType].map(v => v / 100).join(",")
+                            rateValues = this.weightBlocksMap[weightType].map(v => v / 100).join(",");
                         }
                         updatedText += `:${weightType}=${rateValues}`;
                     }
                 } else {
-                    const rateValues = this.weightBlocksMap[weightType].map(v => v / 100).join(",")
+                    const rateValues = this.weightBlocksMap[weightType].map(v => v / 100).join(",");
                     updatedText += `:${rateValues}`;
                 }
             }
@@ -508,26 +508,26 @@ class WeightContextMenu {
             document.body.removeChild(this.customContextMenu);
             window.removeEventListener("click", this.close);
         }
-    }
+    };
 }
 
 async function getTab(tabName) {
-    let tab = null
+    let tab = null;
     while (!tab) {
-        tab = gradioApp().getElementById(`tab_${tabName}`)
+        tab = gradioApp().getElementById(`tab_${tabName}`);
         if (!tab) {
-            await new Promise((resolve) => setTimeout(resolve, 200))
+            await new Promise((resolve) => setTimeout(resolve, 200));
         }
     }
-    return tab
+    return tab;
 }
 
-document.addEventListener('DOMContentLoaded', function () {
-    (async () => {
+document.addEventListener('DOMContentLoaded', function() {
+    (async() => {
         const tabId = "txt2img";
         init(await getTab(tabId), tabId);
-    })()
-})
+    })();
+});
 
 const REGEX = /<([^:]+):([^:]+):([^>]+)>/;
 
@@ -536,7 +536,7 @@ var lastWeightInfo = undefined;
 function init(tab, tabId) {
     const textarea = tab.querySelector(`#${tabId}_prompt textarea`);
     const lbwPreset = gradioApp().getElementById("lbw_ratiospreset");
-    textarea.addEventListener('contextmenu', function (e) {
+    textarea.addEventListener('contextmenu', function(e) {
         if (!lbwPreset) {
             return;
         }
