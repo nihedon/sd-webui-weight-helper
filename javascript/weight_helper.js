@@ -490,6 +490,11 @@ class WeightContextMenu {
             return;
         }
         if (this.customContextMenu.parentNode == document.body) {
+            if (e.target.id.indexOf("_interrupt") > 0) {
+                document.body.removeChild(this.customContextMenu);
+                window.removeEventListener("click", this.close);
+                return;
+            }
             const updatedText = this.#getUpdatedText(this.weightBlocksMap["lbw"].map(v => v / 100).join(","));
             if (!this.usingExecCommand) {
                 this.textarea.dispatchEvent(new InputEvent('input', {
