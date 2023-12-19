@@ -16,12 +16,11 @@
 #weight-helper .draggable-header .page {
     display: flex;
     column-gap: 6px;
+    padding-right: 4px;
 }
-#weight-helper .icon-left {
-    transform: rotate(90deg);
-}
-#weight-helper .icon-right {
-    transform: rotate(270deg);
+#weight-helper .draggable-header .page .icon {
+    transform: scale(0.7, 1);
+    font-weight: bold;
 }
 #weight-helper .slider-container {
     display: flex;

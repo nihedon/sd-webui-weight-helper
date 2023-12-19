@@ -167,9 +167,8 @@ class WeightContextMenu {
         header.appendChild(pageWrapper);
 
         const pageLeft = document.createElement('span');
-        pageLeft.textContent = "▼";
+        pageLeft.textContent = "<";
         pageLeft.classList.add("icon");
-        pageLeft.classList.add("icon-left");
         pageWrapper.appendChild(pageLeft);
         pageLeft.addEventListener("click", () => {
             if (this.historyIndex == 0) {
@@ -199,9 +198,8 @@ class WeightContextMenu {
         pageWrapper.appendChild(pageLabel);
 
         const pageRight = document.createElement('span');
-        pageRight.textContent = "▼";
+        pageRight.textContent = ">";
         pageRight.classList.add("icon");
-        pageRight.classList.add("icon-right");
         pageWrapper.appendChild(pageRight);
         pageRight.addEventListener("click", () => {
             if (this.historyIndex == weight_helper_history[this.name].length - 1) {
