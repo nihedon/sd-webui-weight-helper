@@ -513,7 +513,7 @@ class WeightContextMenu {
             return;
         }
         if (this.customContextMenu.parentNode == document.body) {
-            if (e.target.id.indexOf("_interrupt") > 0) {
+            if (e != null && e.target.id.indexOf("_interrupt") > 0) {
                 document.body.removeChild(this.customContextMenu);
                 window.removeEventListener("click", this.close);
                 return;
