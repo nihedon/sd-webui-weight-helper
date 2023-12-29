@@ -499,7 +499,7 @@ class WeightContextMenu {
         this.customContextMenu.style.top = top + 'px';
         this.customContextMenu.style.left = left + 'px';
         document.body.appendChild(this.customContextMenu);
-        window.addEventListener('click', this.close);
+        document.body.addEventListener('click', this.close);
     }
 
     close = (e) => {
