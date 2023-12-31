@@ -180,6 +180,12 @@ class WeightContextMenu {
         this.customContextMenu.id = 'weight-helper';
         this.customContextMenu.classList.add('context-menu');
 
+        let scale = opts.weight_helper_context_menu_scale;
+        if (scale <= 0) {
+            scale = 1;
+        }
+        this.customContextMenu.style.transform = `scale(${scale})`;
+
         const header = document.createElement('div');
         header.classList.add("draggable-header");
 
