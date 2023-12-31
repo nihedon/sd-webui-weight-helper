@@ -180,6 +180,12 @@ class WeightContextMenu {
         this.customContextMenu.id = 'weight-helper';
         this.customContextMenu.classList.add('context-menu');
 
+        let scale = opts.weight_helper_context_menu_scale;
+        if (scale <= 0) {
+            scale = 1;
+        }
+        this.customContextMenu.style.transform = `scale(${scale})`;
+
         const header = document.createElement('div');
         header.classList.add("draggable-header");
 
@@ -499,7 +505,7 @@ class WeightContextMenu {
         this.customContextMenu.style.top = top + 'px';
         this.customContextMenu.style.left = left + 'px';
         document.body.appendChild(this.customContextMenu);
-        window.addEventListener('click', this.close);
+        document.body.addEventListener('click', this.close);
     }
 
     close = (e) => {

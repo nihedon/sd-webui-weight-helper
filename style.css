@@ -1,3 +1,6 @@
+#weight-helper {
+    transform-origin: left top;
+}
 #weight-helper label {
     user-select: none;
 }

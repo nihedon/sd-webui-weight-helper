@@ -11,6 +11,10 @@ def on_ui_settings():
         shared.OptionInfo(True, 'Enabled', section=section)
     )
     shared.opts.add_option(
+        'weight_helper_context_menu_scale',
+        shared.OptionInfo(0.9, "Context menu scale", gr.Number, section=section)
+    )
+    shared.opts.add_option(
         'weight_helper_using_execCommand',
         shared.OptionInfo(
             False,'Using the deprecated execCommand function to replace text.', section=section
