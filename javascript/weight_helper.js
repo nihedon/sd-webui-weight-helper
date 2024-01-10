@@ -118,7 +118,7 @@ class WeightContextMenu {
             const lbwPresets = lbwPreset.value.split("\n");
             for (const line of lbwPresets) {
                 const kv = line.split(":");
-                if (kv[1].split(",").length == this.weightInfoMap["lbw"][this.type].count) {
+                if (kv.length == 2 && kv[1].split(",").length == this.weightInfoMap["lbw"][this.type].count) {
                     this.lbwPresetsMap[kv[0]] = kv[1];
                     this.lbwPresetsValueKeyMap[kv[1]] = kv[0];
                 }
