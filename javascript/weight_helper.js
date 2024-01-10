@@ -2,6 +2,8 @@
 
 const weight_helper_history = {};
 
+var close_contextMenu;
+
 class WeightContextMenu {
 
     static SUPPORT_TYPE = new Set(["lora", "lyco"]);
@@ -506,9 +508,11 @@ class WeightContextMenu {
         this.customContextMenu.style.left = left + 'px';
         document.body.appendChild(this.customContextMenu);
         document.body.addEventListener('click', this.close);
+        close_contextMenu = this.close;
     }
 
     close = (e) => {
+        close_contextMenu = undefined;
         if (!this.customContextMenu) {
             return;
         }
@@ -576,6 +580,11 @@ function init(tab, tabId) {
                 return;
             }
             if (!opts.weight_helper_enabled) {
+                return;
+            }
+            if (close_contextMenu) {
+                e.preventDefault();
+                close_contextMenu();
                 return;
             }
             let selectedText = window.getSelection().toString();
