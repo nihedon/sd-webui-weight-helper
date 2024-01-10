@@ -568,49 +568,51 @@ const REGEX = /<([^:]+):([^:]+):([^>]+)>/;
 var lastWeightInfo = undefined;
 
 function init(tab, tabId) {
-    const textarea = tab.querySelector(`#${tabId}_prompt textarea`);
+    const textareas = tab.querySelectorAll(`#${tabId}_prompt textarea, #${tabId}_neg_prompt textarea`)
     const lbwPreset = gradioApp().getElementById("lbw_ratiospreset");
-    textarea.addEventListener('contextmenu', function(e) {
-        if (!lbwPreset) {
-            return;
-        }
-        if (!opts.weight_helper_enabled) {
-            return;
-        }
-        let selectedText = window.getSelection().toString();
-        if (selectedText) {
-            return;
-        }
-        const prompt = e.target.value;
-        let tmpSelectionStart = e.target.selectionStart;
-        const lCar = prompt.lastIndexOf("<", tmpSelectionStart - 1);
-        const rCar = prompt.indexOf(">", tmpSelectionStart);
-        if (lCar < 0 || rCar < 0) {
-            return;
-        }
-        selectedText = prompt.substring(lCar, rCar + 1);
-        if ((selectedText.match(/</g) || []).length != 1 || (selectedText.match(/>/g) || []).length != 1) {
-            return;
-        }
-        tmpSelectionStart = lCar;
-        const match = REGEX.exec(selectedText);
-        if (match) {
-            const type = match[1].toLowerCase();
-            const name = match[2];
-            const weights = match[3];
-
-            if (WeightContextMenu.SUPPORT_TYPE.has(type)) {
-                e.preventDefault();
-
-                if (lastWeightInfo) {
-                    lastWeightInfo.close(null);
-                }
-
-                const selectionStart = tmpSelectionStart + match.index;
-                const selectionEnd = selectionStart + match.input.trim().length;
-                lastWeightInfo = new WeightContextMenu(tabId, e.target, selectionStart, selectionEnd, type, name, weights);
-                lastWeightInfo.show(e.pageY + 15, e.pageX);
+    textareas.forEach((textarea) => {
+        textarea.addEventListener('contextmenu', function(e) {
+            if (!lbwPreset) {
+                return;
             }
-        }
-    });
+            if (!opts.weight_helper_enabled) {
+                return;
+            }
+            let selectedText = window.getSelection().toString();
+            if (selectedText) {
+                return;
+            }
+            const prompt = e.target.value;
+            let tmpSelectionStart = e.target.selectionStart;
+            const lCar = prompt.lastIndexOf("<", tmpSelectionStart - 1);
+            const rCar = prompt.indexOf(">", tmpSelectionStart);
+            if (lCar < 0 || rCar < 0) {
+                return;
+            }
+            selectedText = prompt.substring(lCar, rCar + 1);
+            if ((selectedText.match(/</g) || []).length != 1 || (selectedText.match(/>/g) || []).length != 1) {
+                return;
+            }
+            tmpSelectionStart = lCar;
+            const match = REGEX.exec(selectedText);
+            if (match) {
+                const type = match[1].toLowerCase();
+                const name = match[2];
+                const weights = match[3];
+
+                if (WeightContextMenu.SUPPORT_TYPE.has(type)) {
+                    e.preventDefault();
+
+                    if (lastWeightInfo) {
+                        lastWeightInfo.close(null);
+                    }
+
+                    const selectionStart = tmpSelectionStart + match.index;
+                    const selectionEnd = selectionStart + match.input.trim().length;
+                    lastWeightInfo = new WeightContextMenu(tabId, e.target, selectionStart, selectionEnd, type, name, weights);
+                    lastWeightInfo.show(e.pageY + 15, e.pageX);
+                }
+            }
+        });
+    })
 }
