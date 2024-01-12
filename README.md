@@ -1,7 +1,7 @@
 日本語版は下に記載しています。
 
 # Weight Helper
-![capture](https://user-images.githubusercontent.com/66118290/266829584-0d81a17f-cf1b-4e35-a764-1bfc03754fc6.png)
+<img src="https://github.com/nihedon/sd-webui-weight-helper/assets/66118290/eb5fe152-be7a-4eb6-8a7d-bb5c4231ffd2" height="600px">
 
 ## Overview
 

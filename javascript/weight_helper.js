@@ -2,6 +2,8 @@
 
 const weight_helper_history = {};
 
+var close_contextMenu;
+
 class WeightContextMenu {
 
     static SUPPORT_TYPE = new Set(["lora", "lyco"]);
@@ -118,7 +120,7 @@ class WeightContextMenu {
             const lbwPresets = lbwPreset.value.split("\n");
             for (const line of lbwPresets) {
                 const kv = line.split(":");
-                if (kv[1].split(",").length == this.weightInfoMap["lbw"][this.type].count) {
+                if (kv.length == 2 && kv[1].split(",").length == this.weightInfoMap["lbw"][this.type].count) {
                     this.lbwPresetsMap[kv[0]] = kv[1];
                     this.lbwPresetsValueKeyMap[kv[1]] = kv[0];
                 }
@@ -506,9 +508,11 @@ class WeightContextMenu {
         this.customContextMenu.style.left = left + 'px';
         document.body.appendChild(this.customContextMenu);
         document.body.addEventListener('click', this.close);
+        close_contextMenu = this.close;
     }
 
     close = (e) => {
+        close_contextMenu = undefined;
         if (!this.customContextMenu) {
             return;
         }
@@ -568,49 +572,56 @@ const REGEX = /<([^:]+):([^:]+):([^>]+)>/;
 var lastWeightInfo = undefined;
 
 function init(tab, tabId) {
-    const textarea = tab.querySelector(`#${tabId}_prompt textarea`);
+    const textareas = tab.querySelectorAll(`#${tabId}_prompt textarea, #${tabId}_neg_prompt textarea`)
     const lbwPreset = gradioApp().getElementById("lbw_ratiospreset");
-    textarea.addEventListener('contextmenu', function(e) {
-        if (!lbwPreset) {
-            return;
-        }
-        if (!opts.weight_helper_enabled) {
-            return;
-        }
-        let selectedText = window.getSelection().toString();
-        if (selectedText) {
-            return;
-        }
-        const prompt = e.target.value;
-        let tmpSelectionStart = e.target.selectionStart;
-        const lCar = prompt.lastIndexOf("<", tmpSelectionStart - 1);
-        const rCar = prompt.indexOf(">", tmpSelectionStart);
-        if (lCar < 0 || rCar < 0) {
-            return;
-        }
-        selectedText = prompt.substring(lCar, rCar + 1);
-        if ((selectedText.match(/</g) || []).length != 1 || (selectedText.match(/>/g) || []).length != 1) {
-            return;
-        }
-        tmpSelectionStart = lCar;
-        const match = REGEX.exec(selectedText);
-        if (match) {
-            const type = match[1].toLowerCase();
-            const name = match[2];
-            const weights = match[3];
-
-            if (WeightContextMenu.SUPPORT_TYPE.has(type)) {
-                e.preventDefault();
-
-                if (lastWeightInfo) {
-                    lastWeightInfo.close(null);
-                }
-
-                const selectionStart = tmpSelectionStart + match.index;
-                const selectionEnd = selectionStart + match.input.trim().length;
-                lastWeightInfo = new WeightContextMenu(tabId, e.target, selectionStart, selectionEnd, type, name, weights);
-                lastWeightInfo.show(e.pageY + 15, e.pageX);
+    textareas.forEach((textarea) => {
+        textarea.addEventListener('contextmenu', function(e) {
+            if (!lbwPreset) {
+                return;
             }
-        }
-    });
+            if (!opts.weight_helper_enabled) {
+                return;
+            }
+            if (close_contextMenu) {
+                e.preventDefault();
+                close_contextMenu();
+                return;
+            }
+            let selectedText = window.getSelection().toString();
+            if (selectedText) {
+                return;
+            }
+            const prompt = e.target.value;
+            let tmpSelectionStart = e.target.selectionStart;
+            const lCar = prompt.lastIndexOf("<", tmpSelectionStart - 1);
+            const rCar = prompt.indexOf(">", tmpSelectionStart);
+            if (lCar < 0 || rCar < 0) {
+                return;
+            }
+            selectedText = prompt.substring(lCar, rCar + 1);
+            if ((selectedText.match(/</g) || []).length != 1 || (selectedText.match(/>/g) || []).length != 1) {
+                return;
+            }
+            tmpSelectionStart = lCar;
+            const match = REGEX.exec(selectedText);
+            if (match) {
+                const type = match[1].toLowerCase();
+                const name = match[2];
+                const weights = match[3];
+
+                if (WeightContextMenu.SUPPORT_TYPE.has(type)) {
+                    e.preventDefault();
+
+                    if (lastWeightInfo) {
+                        lastWeightInfo.close(null);
+                    }
+
+                    const selectionStart = tmpSelectionStart + match.index;
+                    const selectionEnd = selectionStart + match.input.trim().length;
+                    lastWeightInfo = new WeightContextMenu(tabId, e.target, selectionStart, selectionEnd, type, name, weights);
+                    lastWeightInfo.show(e.pageY + 15, e.pageX);
+                }
+            }
+        });
+    })
 }
