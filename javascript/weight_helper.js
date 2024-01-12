@@ -91,6 +91,18 @@ class WeightContextMenu {
         this.type = type;
         this.name = name;
 
+        try {
+            const loraBlocks = opts.weight_helper_lbw_lora_blocks.split(',').map(pair => pair.trim().split(/:\s*/));
+            this.weightInfoMap["lbw"]["lora"]["labels"] = Object.fromEntries(loraBlocks.map(([key, value]) => [parseInt(key), value]));
+        } catch (e) {
+            console.warn("lora block definition format is invalid.", e);
+        }
+        try {
+            const lycoBlocks = opts.weight_helper_lbw_lyco_blocks.split(',').map(pair => pair.trim().split(/:\s*/));
+            this.weightInfoMap["lbw"]["lyco"]["labels"] = Object.fromEntries(lycoBlocks.map(([key, value]) => [parseInt(key), value]));
+        } catch (e) {
+            console.warn("lyco block definition format is invalid.", e);
+        }
         this.#loadLbwPresets();
         this.#initWeights(weightBlocks);
 
