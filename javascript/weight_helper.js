@@ -583,8 +583,8 @@ const REGEX = /<([^:]+):([^:]+):([^>]+)>/;
 
 var lastWeightInfo = undefined;
 
-function init(tab, tabId) {
-    const textareas = tab.querySelectorAll(`#${tabId}_prompt textarea, #${tabId}_neg_prompt textarea`)
+function init(_, tabId) {
+    const textareas = document.querySelectorAll("*:is([id*='_toprow'] [id*='_prompt'], .prompt) textarea")
     const lbwPreset = gradioApp().getElementById("lbw_ratiospreset");
     textareas.forEach((textarea) => {
         textarea.addEventListener('contextmenu', function(e) {
