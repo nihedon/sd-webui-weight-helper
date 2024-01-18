@@ -1,87 +1,116 @@
 日本語版は下に記載しています。
-
-# Weight Helper
+<br><br>
 <img src="https://github.com/nihedon/sd-webui-weight-helper/assets/66118290/eb5fe152-be7a-4eb6-8a7d-bb5c4231ffd2" height="600px">
+
+# Weight Helper Extension
 
 ## Overview
 
-**Weight Helper** is an extension that allows you to specify weights for Lora or Lyco through the context menu.
+**Weight Helper** is an extension that allows you to visually adjust the weights of Lora and Lyco with mouse operations.<br>
+You can adjust the magnification of each weight block through the context menu.<br>
+Note: The LoRA Block Weight extension is required to use this extension.
 
 ## Installation
 
-1. Open the [Extensions] tab.
-2. Select the [Install from URL] tab.
-3. Enter the following URL to install:
+1. Open the [Extensions] tab in Stable Diffusion Web UI.
+2. Select [Install from URL].
+3. Enter the following URL and execute the installation.
 ```
 https://github.com/nihedon/sd-webui-weight-helper.git
 ```
 
 ## Usage
 
-1. Right-click on a Lora or Lyco tag. The format is as follows:
-   - `<lora:lora_name:multiplier>`
-   - `<lyco:lyco_name:multiplier>`
-2. When the context menu is displayed, move the slider to change the weight.
-3. After making the changes, click outside the context menu to close it.
-   Note: The value will be applied when the context menu is closed. Pressing the "Generate" button while the context menu is open will not apply the changes.
+1. Right-click on a Lora or Lyco tag to open the context menu.
+   - `<lora:lora_name:1.0>`
+   - `<lyco:lyco_name:1.0>`
+2. Move the weight slider to adjust the magnification of each weight block.
+3. After setting, click outside the context menu to close it (Note: Settings are applied when the menu is closed).
 
 ## Features
 
-- Options allow you to specify minimum and maximum values and the number of steps for the slider.
-- The LBW (Lora Block Weight) value is integrated with Lora Block Weight presets.
+- Easy to set weight values with mouse operations.
+- Use of preset values from Lora Block Weight is possible.
 
-## Known Issues
+## Configuration Options
 
-- It is guaranteed to work only in the following environments:
-  - Lora Block Weight installed
-  - Google Chrome
-  - txt2img
+- Scale adjustment in the context menu.
+- Use of the `execCommand` function for text replacement (Note: execCommand is a deprecated function, but it allows for "undo" and "redo").
+- Display of UNet, Dyn, Start, and Stop sliders.
+- Setting of minimum, maximum, and step values for each weight slider.
+- Detailed settings for LBW's Lora and Lyco blocks.
+
+## Guaranteed Operating Environment
+
+- Stable Diffusion AUTOMATIC1111
+- Windows
+- Google Chrome
 
 ## Acknowledgments
 
-We would like to express our gratitude to **hako-mikan**, the author of **Lora Block Weight**.
+We would like to express our deep gratitude to **hako-mikan**, the author of **LoRA Block Weight**, for creating this extension.
 ```
 https://github.com/hako-mikan/sd-webui-lora-block-weight
 ```
 
+## License
+
+This project is published under the [MIT License](LICENSE).
+
+<br><br>
+
+# Weight Helper 拡張機能
 
 ## 概要
 
-**Weight Helper** は、LoraまたはLycoのウェイト指定をコンテキストメニューから行えるようにする拡張機能です。
+**Weight Helper** はLoraやLycoのウェイトをマウス操作で視覚的に調整できる拡張機能です。<br>
+コンテキストメニューを通じて各ウェイトブロックの倍率を調整できます。<br>
+注：この拡張機能を利用するにはLoRA Block Weight拡張機能が必要です。
 
-## インストール方法
+## インストール
 
-1. [Extensions]タブを開きます。
-2. [Install from URL]タブを選択します。
-3. 以下のURLを入力してインストールを行います。
+1. Stable Diffusion Web UIの[拡張機能]タブを開く
+2. [URLからインストール]を選択
+3. 以下のURLを入力し、インストールを実行
 ```
 https://github.com/nihedon/sd-webui-weight-helper.git
 ```
 
 ## 使い方
 
-1. LoraまたはLycoのタグ上で右クリックします。フォーマットは以下の通りです。
-   - `<lora:lora_name:multiplier>`
-   - `<lyco:lyco_name:multiplier>`
-2. コンテキストメニューが表示されたら、スライダーを動かしてウェイトを変更します。
-3. 修正が終わったら、コンテキストメニュー外をクリックしてコンテキストメニューを閉じます。
-   注意: コンテキストメニューが閉じられたときに値が反映されます。コンテキストメニューが表示されているときに「Generate」ボタンを押下しても反映されません。
+1. LoraまたはLycoのタグを右クリックしてコンテキストメニューを開く
+   - `<lora:lora_name:1.0>`
+   - `<lyco:lyco_name:1.0>`
+2. ウェイトスライダーを動かして各ウェイトブロックの倍率を調整
+3. 設定後、コンテキストメニュー外をクリックして閉じる（注：設定はメニューを閉じた時点で適用されます）
 
-## 機能
+## 特徴
 
-- オプションにより、最大値と最小値の指定、スライダーのステップ数の指定が可能です。
-- LBW（Lora Block Weight）の値はLora Block Weightのプリセットと連携しています。
+- マウス操作でウェイト値を容易に設定できます。
+- Lora Block Weightのプリセット値の利用が可能です。
 
-## 残課題
+## 設定オプション
 
-- 以下の環境でのみ動作保証しています。
-  - Lora Block Weight導入済み
-  - Google Chrome
-  - txt2img
+- コンテキストメニューのスケール調整
+- テキスト置換に `execCommand` 関数の使用（注：execCommandは非推奨関数ですが、「元に戻す」「やり直し」が使えます）
+- UNet、Dyn、Start、およびStopスライダーの表示
+- 各ウェイトスライダーの最小値、最大値、ステップ数の設定
+- LBWのLoraおよびLycoブロックの詳細設定
+
+## 動作保証環境
+
+- Stable Difusion AUTOMATIC1111
+- Windows
+- Google Chrome
 
 ## 謝辞
 
-**Lora Block Weight** の作者である **hako-mikan** 様に感謝いたします。
+この拡張機能を作成するにあたり、**LoRA Block Weight** の作者である **hako-mikan** 様に深く感謝申し上げます。
 ```
 https://github.com/hako-mikan/sd-webui-lora-block-weight
 ```
+
+## ライセンス
+
+このプロジェクトは[MITライセンス](LICENSE)の下で公開されています。
+
