@@ -440,8 +440,8 @@ class WeightContextMenu {
         const slider = document.createElement('input');
         slider.classList.add('slider');
         slider.type = 'range';
-        slider.min = min;
-        slider.max = max;
+        slider.min = value < min ? value : min;
+        slider.max = value > max ? value : max;
         slider.step = step;
         slider.value = value;
         return slider;
