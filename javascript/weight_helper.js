@@ -524,7 +524,7 @@ class WeightContextMenu {
             this.customContextMenu.style.top = (top + diffBottom) + 'px';
             const diffTop = this.customContextMenu.getBoundingClientRect().top;
             if (diffTop < 0) {
-                this.customContextMenu.style.top = '0px';
+                this.customContextMenu.style.top = window.scrollY + 'px';
             }
         }
         document.body.addEventListener('click', this.close);
