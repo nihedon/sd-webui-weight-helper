@@ -559,7 +559,15 @@ class WeightContextMenu {
                 }
             } else {
                 if (this.lastText != updatedText) {
+                    let tacActiveInOrg = undefined;
+                    if (typeof TAC_CFG !== 'undefined' && TAC_CFG) {
+                        tacActiveInOrg = TAC_CFG.activeIn.global
+                        TAC_CFG.activeIn.global = false;
+                    }
                     this.#updateWithExecCommand(updatedText);
+                    if (typeof TAC_CFG !== 'undefined' && TAC_CFG) {
+                        TAC_CFG.activeIn.global = tacActiveInOrg;
+                    }
                     weight_helper_history[this.name].push(this.weightBlocksMap);
                 }
             }
