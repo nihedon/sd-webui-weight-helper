@@ -23,7 +23,7 @@ class WeightContextMenu {
         },
         dyn: {
             label: "Dyn",
-            min: opts.weight_helper_dyn_min * 100, max: opts.weight_helper_dyn_max * 100, default: 25600, step: opts.weight_helper_dyn_step * 100,
+            min: opts.weight_helper_dyn_min * 100, max: opts.weight_helper_dyn_max * 100, default: 0, step: opts.weight_helper_dyn_step * 100,
             lora: {count: 1, labels: {}},
             lyco: {count: 1, labels: {}}
         },
