@@ -1,10 +1,13 @@
 #weight-helper {
     transform-origin: left top;
+    color: var(--body-text-color);
+    background: var(--body-background-fill);
+    border: var(--input-border-width) solid var(--border-color-primary);
+    box-shadow: 0px 0px 7px 0 rgba(0, 0, 0, 0.2);
+    position: absolute;
+    z-index: 1000;
 }
-#weight-helper label {
-    user-select: none;
-}
-#weight-helper .draggable-header {
+#weight-helper > header {
     background-color: var(--border-color-primary);
     margin-bottom: 4px;
     color: var(--block-label-text-color);
@@ -12,56 +15,33 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-}
-#weight-helper .draggable-header {
     padding: 0px 3px;
 }
-#weight-helper .draggable-header .page {
+#weight-helper > header .page {
     display: flex;
     column-gap: 6px;
     padding-right: 4px;
 }
-#weight-helper .draggable-header .page .icon {
+#weight-helper > header .page .icon {
     transform: scale(0.7, 1);
     font-weight: bold;
 }
-#weight-helper .slider-container {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-#weight-helper .slider-container-type {
+#weight-helper section {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 6px;
-    padding: 4px;
-    margin: 0 4px 4px;
-    border: 1px solid var(--block-border-color) !important;
-    border-radius: 8px !important;
 }
-#weight-helper .slider-container-group {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 5px;
-}
-#weight-helper .slider-container-group.border {
+#weight-helper .border {
     padding: 3px;
     border: 1px solid var(--block-border-color) !important;
     border-radius: 8px !important;
 }
-#weight-helper .slider-container-groups {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-#weight-helper .slider-container-wrapper {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+#weight-helper > section {
+    margin: 0 4px 4px;
 }
 #weight-helper label {
+    user-select: none;
     font-family: var(--font);
     font-size: var(--section-header-text-size);
     padding: 0 5px 0 5px;
@@ -100,13 +80,22 @@
     box-shadow: var(--input-shadow-focus);
     border-color: var(--input-border-color-focus);
 }
-#weight-helper.context-menu {
-    color: var(--body-text-color);
-    background: var(--body-background-fill);
-    border: var(--input-border-width) solid var(--border-color-primary);
-    box-shadow: 0px 0px 7px 0 rgba(0, 0, 0, 0.2);
+#weight-helper .f {
     display: flex;
+    justify-content: space-between;
+}
+#weight-helper .f-c {
+    align-items: center;
+}
+#weight-helper .col {
     flex-direction: column;
-    position: absolute;
-    z-index: 1000;
+}
+#weight-helper .g-2 {
+    gap: 2px;
+}
+#weight-helper .g-4 {
+    gap: 4px;
+}
+#weight-helper .w-fill {
+    width: 100%;
 }

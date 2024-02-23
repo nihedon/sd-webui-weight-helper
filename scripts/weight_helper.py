@@ -6,7 +6,7 @@ def on_ui_settings():
     Set up the UI settings for the weight helper by adding options to the shared configuration.
     """
     section = ('weight_helper', 'Weight Helper')
-    
+
     shared.options_templates.update(shared.options_section(section, {
         'weight_helper_enabled': shared.OptionInfo(True, 'Enabled'),
         'weight_helper_context_menu_scale': shared.OptionInfo(0.9, "Context menu scale", gr.Number),
@@ -38,17 +38,29 @@ def on_ui_settings():
         "weight_helper_lbw_max": shared.OptionInfo(1, "LBW(Lora Block Weight) max value", gr.Number),
         "weight_helper_lbw_step": shared.OptionInfo(0.05, "LBW(Lora Block Weight) step", gr.Number),
 
-        "weight_helper_lbw_lora_blocks": shared.OptionInfo(
-            "0: BASE, 1: IND, 4: INS, 7: MIDD, 8: OUTD, 12: OUTS",
+        "weight_helper_lbw_lora_block_points": shared.OptionInfo(
+            "0, 1, 4, 7, 8, 12",
             "Advanced option - Lora blocks"
         ).info(
-            "default: 0: BASE, 1: IND, 4: INS, 7: MIDD, 8: OUTD, 12: OUTS"
+            "default: 0, 1, 4, 7, 8, 12"
         ),
-        "weight_helper_lbw_lyco_blocks": shared.OptionInfo(
-            "0: BASE, 1: IN00-05, 7: IN06-11, 13: MID, 14: OUT00-05, 20: OUT06-11",
+        "weight_helper_lbw_lyco_block_points": shared.OptionInfo(
+            "0, 1, 7, 13, 14, 20",
             "Advanced option - Lyco blocks"
         ).info(
-            "default: 0: BASE, 1: IN00-05, 7: IN06-11, 13: MID, 14: OUT00-05, 20: OUT06-11"
+            "default: 0, 1, 7, 13, 14, 20"
+        ),
+        "weight_helper_lbw_lora_sdxl_block_points": shared.OptionInfo(
+            "0, 1, 5, 6",
+            "Advanced option - Lora(SDXL) blocks"
+        ).info(
+            "default: 0, 1, 5, 6"
+        ),
+        "weight_helper_lbw_lyco_sdxl_block_points": shared.OptionInfo(
+            "0, 1, 5, 10, 11, 15",
+            "Advanced option - Lyco(SDXL) blocks"
+        ).info(
+            "default: 0, 1, 5, 10, 11, 15"
         )
     }))
 
