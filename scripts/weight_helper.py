@@ -9,7 +9,7 @@ def on_ui_settings():
 
     shared.options_templates.update(shared.options_section(section, {
         'weight_helper_enabled': shared.OptionInfo(True, 'Enabled'),
-        'weight_helper_context_menu_scale': shared.OptionInfo(0.9, "Context menu scale", gr.Number),
+        'weight_helper_context_menu_scale': shared.OptionInfo(0.8, "Context menu scale", gr.Number),
         'weight_helper_using_execCommand': shared.OptionInfo(
             False,'Using the deprecated execCommand function to replace text.'
         ).info(

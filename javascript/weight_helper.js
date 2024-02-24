@@ -1,6 +1,6 @@
 'use strict';
 
-const weight_helper_history = {};
+var weight_helper_history = JSON.parse(localStorage.getItem("weight_helper"));
 
 var close_contextMenu;
 
@@ -42,25 +42,25 @@ class WeightContextMenu {
             type: "lora",
             name: "LoRA",
             enable_blocks: [1,0,1,1,0,1,1,0,1,1,0,0,0,1,0,0,0,1,1,1,1,1,1,1,1,1],
-            block_points: [0, 1, 4, 7, 8, 12]
+            block_points: new Set([0, 1, 4, 7, 8, 12])
         },
         lyco: {
             type: "lyco",
             name: "LyCORIS",
             enable_blocks: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-            block_points: [0, 1, 7, 13, 14, 20]
+            block_points: new Set([0, 1, 7, 13, 14, 20])
         },
         lora_sdxl: {
             type: "lora",
             name: "LoRA(SDXL)",
             enable_blocks: [1,0,0,0,0,1,1,0,1,1,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0],
-            block_points: [0, 1, 5, 6]
+            block_points: new Set([0, 1, 5, 6])
         },
         lyco_sdxl: {
             type: "lyco",
             name: "LyCORIS(SDXL)",
-            enable_blocks: [1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0],
-            block_points: [0, 1, 5, 10, 11, 15]
+            enable_blocks: [1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,0,0,0,0],
+            block_points: new Set([0, 1, 5, 10, 11, 15])
         }
     };
 
@@ -74,6 +74,7 @@ class WeightContextMenu {
     type = undefined;
     weightType = undefined;
     name = undefined;
+    nameHash = undefined;
     weightData = {};
 
     lastSelectionStart = undefined;
@@ -81,6 +82,7 @@ class WeightContextMenu {
     lastText = undefined;
 
     historyIndex = 0;
+    cleared = false;
 
     customContextMenu = undefined;
 
@@ -99,12 +101,13 @@ class WeightContextMenu {
 
         this.type = type;
         this.name = name;
+        this.nameHash = this.#hashCode(name);
 
         for (let weightKey of Object.keys(this.LBW_WEIGHT_SETTINGS)) {
             try {
                 const optBlockPoints = opts["weight_helper_lbw_" + weightKey + "_block_points"]
                 const blockPoints = optBlockPoints.split(',').map((v) => parseInt(v.trim()));
-                this.LBW_WEIGHT_SETTINGS[weightKey].block_points = blockPoints;
+                this.LBW_WEIGHT_SETTINGS[weightKey].block_points = new Set(blockPoints);
             } catch (e) {
                 console.warn(`${weightKey} block definition format is invalid.`, e);
             }
@@ -112,14 +115,17 @@ class WeightContextMenu {
 
         this.#init(allWeights);
 
-        if (!(name in weight_helper_history)) {
-            const history = {};
-            WeightContextMenu.#copyWeight(this.weightData, history);
-
-            weight_helper_history[name] = [];
-            weight_helper_history[name].push(history);
+        if (!weight_helper_history) {
+            weight_helper_history = {};
         }
-        this.historyIndex = weight_helper_history[name].length - 1;
+        if (!(this.nameHash in weight_helper_history)) {
+            const history = {};
+            this.#copyWeight(this.weightData, history);
+
+            weight_helper_history[this.nameHash] = [];
+            weight_helper_history[this.nameHash].push(history);
+        }
+        this.historyIndex = weight_helper_history[this.nameHash].length - 1;
 
         this.#initContextMenuHeader();
         this.#initContextMenuBody();
@@ -132,6 +138,17 @@ class WeightContextMenu {
                 console.warn("execCommand is not supported.");
             }
         }
+    }
+
+    #hashCode(s) {
+        var hash = 0;
+        if (s.length === 0) return hash;
+        for (var i = 0; i < s.length; i++) {
+            var char = s.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32bit integer
+        }
+        return hash;
     }
 
     #init(allWeights) {
@@ -238,24 +255,39 @@ class WeightContextMenu {
         const header = document.createElement('header');
 
         const headerLabel = document.createElement('label');
-        headerLabel.textContent = "Weight Helper";
+        headerLabel.textContent = this.name;
         header.appendChild(headerLabel);
+
+        const history = document.createElement('div');
+        history.classList.add("history");
+        header.appendChild(history);
+
+        const clear = document.createElement('a');
+        clear.classList.add("clear");
+        clear.textContent = "clear";
+        clear.addEventListener("click", () => {
+            this.cleared = true;
+            pageLabel.textContent = "0/0";
+            this.historyIndex = -1;
+            weight_helper_history[this.nameHash] = [];
+        });
+        history.appendChild(clear);
 
         const pageWrapper = document.createElement('div');
         pageWrapper.classList.add("page");
-        header.appendChild(pageWrapper);
+        history.appendChild(pageWrapper);
 
-        const pageLeft = document.createElement('span');
+        const pageLeft = document.createElement('a');
         pageLeft.textContent = "<";
         pageLeft.classList.add("icon");
         pageWrapper.appendChild(pageLeft);
         pageLeft.addEventListener("click", () => {
-            if (this.historyIndex == 0) {
+            if (this.historyIndex <= 0) {
                 return;
             }
             this.historyIndex--;
-            pageLabel.textContent = (this.historyIndex + 1) + "/" + weight_helper_history[this.name].length;
-            WeightContextMenu.#copyWeight(weight_helper_history[this.name][this.historyIndex], this.weightData);
+            pageLabel.textContent = (this.historyIndex + 1) + "/" + weight_helper_history[this.nameHash].length;
+            this.#copyWeight(weight_helper_history[this.nameHash][this.historyIndex], this.weightData);
             Object.keys(this.weightData).map(key => {
                 for (const idx in this.weightData[key]) {
                     const fVal = this.weightData[key][idx];
@@ -266,27 +298,27 @@ class WeightContextMenu {
                 }
             });
             if (!this.usingExecCommand) {
-                const lbwValues = this.weightData["lbw"].map(v => v / 100).join(",");
+                const lbwValues = this.#lbwWeightData().join(",");
                 const updatedText = this.#getUpdatedText(lbwValues);
                 this.#update(updatedText);
             }
         });
 
         const pageLabel = document.createElement('label');
-        pageLabel.textContent = (this.historyIndex + 1) + "/" + weight_helper_history[this.name].length;
+        pageLabel.textContent = (this.historyIndex + 1) + "/" + weight_helper_history[this.nameHash].length;
         pageWrapper.appendChild(pageLabel);
 
-        const pageRight = document.createElement('span');
+        const pageRight = document.createElement('a');
         pageRight.textContent = ">";
         pageRight.classList.add("icon");
         pageWrapper.appendChild(pageRight);
         pageRight.addEventListener("click", () => {
-            if (this.historyIndex == weight_helper_history[this.name].length - 1) {
+            if (this.historyIndex >= weight_helper_history[this.nameHash].length - 1) {
                 return;
             }
             this.historyIndex++;
-            pageLabel.textContent = (this.historyIndex + 1) + "/" + weight_helper_history[this.name].length;
-            WeightContextMenu.#copyWeight(weight_helper_history[this.name][this.historyIndex], this.weightData);
+            pageLabel.textContent = (this.historyIndex + 1) + "/" + weight_helper_history[this.nameHash].length;
+            this.#copyWeight(weight_helper_history[this.nameHash][this.historyIndex], this.weightData);
             Object.keys(this.weightData).map(key => {
                 for (const idx in this.weightData[key]) {
                     const fVal = this.weightData[key][idx];
@@ -297,7 +329,7 @@ class WeightContextMenu {
                 }
             });
             if (!this.usingExecCommand) {
-                const lbwValues = this.weightData["lbw"].map(v => v / 100).join(",");
+                const lbwValues = this.#lbwWeightData().join(",");
                 const updatedText = this.#getUpdatedText(lbwValues);
                 this.#update(updatedText);
             }
@@ -383,7 +415,7 @@ class WeightContextMenu {
             lbwTypeOpt.text = this.LBW_WEIGHT_SETTINGS[weightType].name;
             lbwTypeSelect.appendChild(lbwTypeOpt);
         }
-        lbwTypeSelect.value = this.type;
+        lbwTypeSelect.value = this.weightType;
         lbwSet.appendChild(lbwTypeSelect);
 
         lbwTypeSelect.addEventListener("change", (e) => {
@@ -416,7 +448,7 @@ class WeightContextMenu {
             }
 
             if (!this.usingExecCommand) {
-                const lbwValues = this.weightData[weightType].map(v => v / 100).join(",");
+                const lbwValues = this.#lbwWeightData().join(",");
                 const updatedText = this.#getUpdatedText(lbwValues);
                 this.#update(updatedText);
             }
@@ -458,23 +490,24 @@ class WeightContextMenu {
         if (Object.keys(this.lbwPresetsMap[this.weightType]).length) {
             for (const key of Object.keys(this.lbwPresetsMap[this.weightType])) {
                 const opt = document.createElement('option');
-                opt.value = this.lbwPresetsMap[this.weightType][key];
                 opt.text = key;
+                opt.value = this.lbwPresetsMap[this.weightType][key];
                 this.lbwPresetSelect.appendChild(opt);
             }
         }
+        this.lbwPresetSelect.value = this.#lbwWeightData();
 
         while (this.lbwGroupWrapper.firstChild) {
             this.lbwGroupWrapper.removeChild(this.lbwGroupWrapper.firstChild);
         }
 
-        const weightSetting = this.LBW_WEIGHT_SETTINGS[this.weightType];
+        const lbwWeightSetting = this.LBW_WEIGHT_SETTINGS[this.weightType];
 
         let refIdx = 0;
         let lbwGroup = null;
         for (let i = 0; i < this.weightData["lbw"].length; i++) {
-            if (weightSetting.enable_blocks[i] == 1) {
-                if (weightSetting.block_points.includes(refIdx)) {
+            if (lbwWeightSetting.enable_blocks[i] == 1) {
+                if (lbwWeightSetting.block_points.has(refIdx)) {
                     lbwGroup = document.createElement('div');
                     lbwGroup.classList.add('border', 'f', 'g-2', 'col');
                     this.lbwGroupWrapper.appendChild(lbwGroup);
@@ -485,7 +518,13 @@ class WeightContextMenu {
         }
     }
 
-    static #copyWeight(srcWeight, destWeight) {
+    #lbwWeightData() {
+        const lbwWeightSetting = this.LBW_WEIGHT_SETTINGS[this.weightType];
+        const enableBlocks = lbwWeightSetting.enable_blocks;
+        return this.weightData["lbw"].filter((_, i) => enableBlocks[i] == 1).map(v => v / 100);
+    }
+
+    #copyWeight(srcWeight, destWeight) {
         Object.keys(srcWeight).map(key => {
             destWeight[key] = [];
             for (const idx in srcWeight[key]) {
@@ -495,7 +534,7 @@ class WeightContextMenu {
         });
     }
 
-    static #makeSlider(value, min, max, step) {
+    #makeSlider(value, min, max, step) {
         const slider = document.createElement('input');
         slider.classList.add('slider');
         slider.type = 'range';
@@ -506,7 +545,7 @@ class WeightContextMenu {
         return slider;
     }
 
-    static #makeUpdown(value, step) {
+    #makeUpdown(value, step) {
         const valueText = document.createElement('input');
         valueText.classList.add('value');
         valueText.type = "number";
@@ -516,55 +555,42 @@ class WeightContextMenu {
     }
 
     #makeSliderComponent(sliderContainer, lbwPresetSelect, weightType, i, min, max, step) {
-        const slider = WeightContextMenu.#makeSlider(Math.round(this.weightData[weightType][i]), min, max, step);
+        const slider = this.#makeSlider(Math.round(this.weightData[weightType][i]), min, max, step);
         this.lbwUnits[weightType].slider.push(slider);
 
-        const updown = WeightContextMenu.#makeUpdown(this.weightData[weightType][i], step);
+        const updown = this.#makeUpdown(this.weightData[weightType][i], step);
         this.lbwUnits[weightType].updown.push(updown);
+
+        const changedLbwValues = () => {
+            let lbwValues = null;
+            if (lbwPresetSelect && weightType == "lbw") {
+                lbwValues = this.#lbwWeightData().join(",");
+                if (lbwValues in this.lbwPresetsValueKeyMap[this.weightType]) {
+                    lbwPresetSelect.value = lbwValues;
+                } else {
+                    lbwPresetSelect.selectedIndex = 0;
+                }
+            }
+            if (!this.usingExecCommand) {
+                if (!lbwValues) {
+                    lbwValues = this.#lbwWeightData().join(",");
+                }
+                const updatedText = this.#getUpdatedText(lbwValues);
+                this.#update(updatedText);
+            }
+        }
 
         slider.addEventListener('input', (e) => {
             const fVal = parseFloat(e.target.value);
             this.weightData[weightType][i] = fVal;
             updown.value = Math.round(fVal) / 100;
-
-            if (lbwPresetSelect && weightType == "lbw") {
-                const lbwWeightSetting = this.LBW_WEIGHT_SETTINGS[this.weightType];
-                const enableBlocks = lbwWeightSetting.enable_blocks;
-                const lbwValues = this.weightData["lbw"]
-                        .filter((_, i) => enableBlocks[i] == 1)
-                        .map(v => v / 100).join(",");
-                if (lbwValues in this.lbwPresetsValueKeyMap[this.weightType]) {
-                    lbwPresetSelect.value = lbwValues;
-                } else {
-                    lbwPresetSelect.selectedIndex = 0;
-                }
-            }
-            if (!this.usingExecCommand) {
-                const updatedText = this.#getUpdatedText(lbwValues);
-                this.#update(updatedText);
-            }
+            changedLbwValues();
         });
         updown.addEventListener('input', (e) => {
             const fVal = parseFloat(e.target.value);
             this.weightData[weightType][i] = fVal * 100;
             slider.value = Math.round(fVal * 100);
-
-            if (lbwPresetSelect && weightType == "lbw") {
-                const lbwWeightSetting = this.LBW_WEIGHT_SETTINGS[this.weightType];
-                const enableBlocks = lbwWeightSetting.enable_blocks;
-                const lbwValues = this.weightData["lbw"]
-                        .filter((_, i) => enableBlocks[i] == 1)
-                        .map(v => v / 100).join(",");
-                if (lbwValues in this.lbwPresetsValueKeyMap[this.weightType]) {
-                    lbwPresetSelect.value = lbwValues;
-                } else {
-                    lbwPresetSelect.selectedIndex = 0;
-                }
-            }
-            if (!this.usingExecCommand) {
-                const updatedText = this.#getUpdatedText(lbwValues);
-                this.#update(updatedText);
-            }
+            changedLbwValues();
         });
 
         sliderContainer.appendChild(slider);
@@ -610,8 +636,8 @@ class WeightContextMenu {
         }
         if (!defaultMap["lbw"] || (!defaultMap["unet"] || !defaultMap["dyn"])) {
             let rateValues = lbwWeights.map(v => v / 100).join(",");
-            if (lbwValues in this.lbwPresetsValueKeyMap) {
-                rateValues = this.lbwPresetsValueKeyMap[lbwValues];
+            if (lbwValues in this.lbwPresetsValueKeyMap[this.weightType]) {
+                rateValues = this.lbwPresetsValueKeyMap[this.weightType][lbwValues];
             }
             updatedText += `:lbw=${rateValues}`;
         }
@@ -647,7 +673,6 @@ class WeightContextMenu {
     }
 
     close = (e) => {
-        close_contextMenu = undefined;
         if (!this.customContextMenu) {
             return;
         }
@@ -658,22 +683,24 @@ class WeightContextMenu {
             return;
         }
         if (this.customContextMenu.parentNode == document.body) {
+            close_contextMenu = undefined;
             if (e != null && e.target.id.indexOf("_interrupt") > 0) {
                 document.body.removeChild(this.customContextMenu);
                 window.removeEventListener("click", this.close);
                 return;
             }
-            const updatedText = this.#getUpdatedText(this.weightData["lbw"].map(v => v / 100).join(","));
+            const updatedText = this.#getUpdatedText(this.#lbwWeightData().join(","));
             if (!this.usingExecCommand) {
                 this.textarea.dispatchEvent(new InputEvent('input', {
                     bubbles: true,
                     cancelable: true
                 }));
-                if (this.lastText != updatedText) {
-                    weight_helper_history[this.name].push(this.weightData);
+                if (this.cleared || this.lastText != updatedText) {
+                    weight_helper_history[this.nameHash].push(this.weightData);
+                    localStorage.setItem("weight_helper", JSON.stringify(weight_helper_history));
                 }
             } else {
-                if (this.lastText != updatedText) {
+                if (this.cleared || this.lastText != updatedText) {
                     let tacActiveInOrg = undefined;
                     if (typeof TAC_CFG !== 'undefined' && TAC_CFG) {
                         tacActiveInOrg = TAC_CFG.activeIn.global
@@ -683,7 +710,8 @@ class WeightContextMenu {
                     if (typeof TAC_CFG !== 'undefined' && TAC_CFG) {
                         TAC_CFG.activeIn.global = tacActiveInOrg;
                     }
-                    weight_helper_history[this.name].push(this.weightData);
+                    weight_helper_history[this.nameHash].push(this.weightData);
+                    localStorage.setItem("weight_helper", JSON.stringify(weight_helper_history));
                 }
             }
             document.body.removeChild(this.customContextMenu);
