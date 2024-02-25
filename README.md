@@ -1,6 +1,6 @@
 日本語版は下に記載しています。
 <br><br>
-<img src="https://github.com/nihedon/sd-webui-weight-helper/assets/66118290/eb5fe152-be7a-4eb6-8a7d-bb5c4231ffd2" height="600px">
+<img src="https://github.com/nihedon/sd-webui-weight-helper/assets/66118290/f7079e1c-3b2a-426c-b3a2-1a7ccf57cab2" height="600px">
 
 # Weight Helper Extension
 
