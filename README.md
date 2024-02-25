@@ -25,7 +25,6 @@ https://github.com/nihedon/sd-webui-weight-helper.git
    - `<lora:lora_name:1.0>`
    - `<lyco:lyco_name:1.0>`
 2. Move the weight slider to adjust the magnification of each weight block.
-3. After setting, click outside the context menu to close it (Note: Settings are applied when the menu is closed).
 
 ## Features
 
@@ -82,7 +81,6 @@ https://github.com/nihedon/sd-webui-weight-helper.git
    - `<lora:lora_name:1.0>`
    - `<lyco:lyco_name:1.0>`
 2. ウェイトスライダーを動かして各ウェイトブロックの倍率を調整
-3. 設定後、コンテキストメニュー外をクリックして閉じる（注：設定はメニューを閉じた時点で適用されます）
 
 ## 特徴
 

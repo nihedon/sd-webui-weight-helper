@@ -743,7 +743,15 @@ const REGEX = /<([^:]+):([^:]+):([^>]+)>/;
 var lastWeightInfo = undefined;
 
 function init(_, tabId) {
-    const textareas = document.querySelectorAll("*:is([id*='_toprow'] [id*='_prompt'], .prompt) textarea")
+    const genButtons = document.querySelectorAll("button:is([id*='_generate'])");
+    genButtons.forEach((button) => {
+        button.addEventListener('click', function(e) {
+            if (close_contextMenu) {
+                close_contextMenu();
+            }
+        }, true);
+    });
+    const textareas = document.querySelectorAll("*:is([id*='_toprow'] [id*='_prompt'], .prompt) textarea");
     const lbwPreset = gradioApp().getElementById("lbw_ratiospreset");
     textareas.forEach((textarea) => {
         textarea.addEventListener('contextmenu', function(e) {
