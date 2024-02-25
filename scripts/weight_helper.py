@@ -17,11 +17,6 @@ def on_ui_settings():
             "you can use 'undo' to revert the text to its previous state."
         ),
 
-        'weight_helper_disp_unet_slider': shared.OptionInfo(False, 'Display UNet slider'),
-        'weight_helper_disp_dyn_slider': shared.OptionInfo(False, 'Display Dyn slider'),
-        'weight_helper_disp_start_slider': shared.OptionInfo(False, 'Display Start slider'),
-        'weight_helper_disp_stop_slider': shared.OptionInfo(False, 'Display Stop slider'),
-
         "weight_helper_te_min": shared.OptionInfo(0, "TEnc min value", gr.Number),
         "weight_helper_te_max": shared.OptionInfo(1, "TEnc max value", gr.Number),
         "weight_helper_te_step": shared.OptionInfo(0.05, "TEnc step", gr.Number),
@@ -40,25 +35,25 @@ def on_ui_settings():
 
         "weight_helper_lbw_lora_block_points": shared.OptionInfo(
             "0, 1, 4, 7, 8, 12",
-            "Advanced option - Lora blocks"
+            "Advanced option - Lora block points"
         ).info(
             "default: 0, 1, 4, 7, 8, 12"
         ),
         "weight_helper_lbw_lyco_block_points": shared.OptionInfo(
             "0, 1, 7, 13, 14, 20",
-            "Advanced option - Lyco blocks"
+            "Advanced option - Lyco block points"
         ).info(
             "default: 0, 1, 7, 13, 14, 20"
         ),
         "weight_helper_lbw_lora_sdxl_block_points": shared.OptionInfo(
             "0, 1, 5, 6",
-            "Advanced option - Lora(SDXL) blocks"
+            "Advanced option - Lora(SDXL) block points"
         ).info(
             "default: 0, 1, 5, 6"
         ),
         "weight_helper_lbw_lyco_sdxl_block_points": shared.OptionInfo(
             "0, 1, 5, 10, 11, 15",
-            "Advanced option - Lyco(SDXL) blocks"
+            "Advanced option - Lyco(SDXL) block points"
         ).info(
             "default: 0, 1, 5, 10, 11, 15"
         )
