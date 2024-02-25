@@ -3,7 +3,7 @@
     color: var(--body-text-color);
     background: var(--body-background-fill);
     border: var(--input-border-width) solid var(--border-color-primary);
-    box-shadow: 0px 0px 7px 0 rgba(0, 0, 0, 0.2);
+    box-shadow: 0px 0px 7px 0 var(--weight-helper-shadow);
     position: absolute;
     z-index: 1000;
 }
@@ -31,15 +31,15 @@
     padding-right: 4px;
 }
 #weight-helper > header .page .icon {
-    background-color: var(--block-label-text-color);
+    background-color: var(--block-info-text-color);
     color: var(--border-color-primary);
     border-radius: 10px;
     width: 15px;
     text-align: center;
     font-size: var(--text-xs);
 }
-#weight-helper > header .clear {
-    border: 1px solid var(--body-text-color-subdued);
+#weight-helper .clear {
+    border: 1px solid var(--block-info-text-color);
     border-radius: 10px;
     font-size: var(--text-xs);
     padding: 0px 9px;
@@ -60,7 +60,7 @@
     border: 1px solid var(--block-border-color) !important;
     border-radius: 8px !important;
 }
-#weight-helper > section {
+#weight-helper > :not(header) {
     margin: 0 4px 4px;
 }
 #weight-helper label {

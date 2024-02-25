@@ -743,6 +743,11 @@ const REGEX = /<([^:]+):([^:]+):([^>]+)>/;
 var lastWeightInfo = undefined;
 
 function init(_, tabId) {
+    let textColor = getComputedStyle(document.documentElement).getPropertyValue('--body-text-color').trim();
+    let textColorRgb = textColor.slice(1).match(/.{1,2}/g).map(hex => parseInt(hex, 16));
+    let textColorRgba = [...textColorRgb, 0.2];
+    document.documentElement.style.setProperty('--weight-helper-shadow', `rgba(${textColorRgba.join(",")})`);
+
     const genButtons = document.querySelectorAll("button:is([id*='_generate'])");
     genButtons.forEach((button) => {
         button.addEventListener('click', function(e) {
