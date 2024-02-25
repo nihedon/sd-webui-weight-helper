@@ -717,7 +717,7 @@ class WeightContextMenu {
             return;
         }
         if (this.customContextMenu.parentNode == document.body
-                && e.target.id != "weight-helper-show-extra-opt-button") {
+                && (!e || e.target.id != "weight-helper-show-extra-opt-button")) {
             close_contextMenu = undefined;
             if (e != null && e.target.id.indexOf("_interrupt") > 0) {
                 document.body.removeChild(this.customContextMenu);
