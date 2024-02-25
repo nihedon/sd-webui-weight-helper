@@ -28,14 +28,14 @@ class WeightContextMenu {
         stop: {
             label: "Stop",
             min: 0, max: undefined, default: undefined, step: 100
+        },
+        lbw: {
+            labels: ["BASE", "IN00", "IN01", "IN02", "IN03", "IN04", "IN05", "IN06", "IN07", "IN08", "IN09", "IN10", "IN11", "MID", "OUT00", "OUT01", "OUT02", "OUT03", "OUT04", "OUT05", "OUT06", "OUT07", "OUT08", "OUT09", "OUT10", "OUT11"],
+            min: opts.weight_helper_lbw_min * 100,
+            max: opts.weight_helper_lbw_max * 100,
+            default: 100,
+            step: opts.weight_helper_lbw_step * 100
         }
-    };
-    BLOCK_WEIGHT_SLIDER_SETTINGS = {
-        min: opts.weight_helper_lbw_min * 100,
-        max: opts.weight_helper_lbw_max * 100,
-        default: 100,
-        step: opts.weight_helper_lbw_step * 100,
-        labels: ["BASE", "IN00", "IN01", "IN02", "IN03", "IN04", "IN05", "IN06", "IN07", "IN08", "IN09", "IN10", "IN11", "MID", "OUT00", "OUT01", "OUT02", "OUT03", "OUT04", "OUT05", "OUT06", "OUT07", "OUT08", "OUT09", "OUT10", "OUT11"]
     };
     LBW_WEIGHT_SETTINGS = {
         lora: {
@@ -368,6 +368,9 @@ class WeightContextMenu {
         const extraOpts = [];
         let hiddenExtraOpts = 0;
         for (const weightType of Object.keys(this.WEIGHT_SETTINGS)) {
+            if (weightType == "lbw") {
+                break;
+            }
 
             const weightSetting = this.WEIGHT_SETTINGS[weightType];
 
@@ -382,7 +385,7 @@ class WeightContextMenu {
 
             const sliderContainer = document.createElement('div');
             sliderContainer.classList.add('f', 'f-c', 'g-4');
-            this.#makeSliderComponent(sliderContainer, null, weightType, 0, weightSetting.min, weightSetting.max, weightSetting.step);
+            this.#makeSliderComponent(sliderContainer, null, weightType, 0);
             section.appendChild(sliderContainer);
 
             if (weightSetting.label == "TEnc") {
@@ -478,12 +481,12 @@ class WeightContextMenu {
             lbwUnit.classList.add('f', 'g-2');
 
             const label = document.createElement('label');
-            label.textContent = this.BLOCK_WEIGHT_SLIDER_SETTINGS.labels[i];
+            label.textContent = this.WEIGHT_SETTINGS[weightType].labels[i];
             lbwUnit.appendChild(label);
 
             const sliderContainer = document.createElement('div');
             sliderContainer.classList.add('f', 'f-c', 'g-4');
-            this.#makeSliderComponent(sliderContainer, this.lbwPresetSelect, weightType, i, this.BLOCK_WEIGHT_SLIDER_SETTINGS.min, this.BLOCK_WEIGHT_SLIDER_SETTINGS.max, this.BLOCK_WEIGHT_SLIDER_SETTINGS.step);
+            this.#makeSliderComponent(sliderContainer, this.lbwPresetSelect, weightType, i);
             lbwUnit.appendChild(sliderContainer);
 
             this.lbwUnits.lbw.dom.push(lbwUnit);
@@ -552,18 +555,29 @@ class WeightContextMenu {
         });
     }
 
-    #makeSlider(value, min, max, step) {
+    #makeSlider(weightType, i) {
+        const value = Math.round(this.weightData[weightType][i]);
+        const min = this.WEIGHT_SETTINGS[weightType].min;
+        const max = this.WEIGHT_SETTINGS[weightType].max;
+        const step = this.WEIGHT_SETTINGS[weightType].step;
         const slider = document.createElement('input');
         slider.classList.add('slider');
         slider.type = 'range';
-        slider.min = value < min ? value : min;
-        slider.max = value > max ? value : max;
+        if (weightType == "start" || weightType == "stop") {
+            slider.min = min;
+            slider.max = max;
+        } else {
+            slider.min = value < min ? value : min;
+            slider.max = value > max ? value : max;
+        }
         slider.step = step;
         slider.value = value;
         return slider;
     }
 
-    #makeUpdown(value, step) {
+    #makeUpdown(weightType, i) {
+        const value = this.weightData[weightType][i];
+        const step = this.WEIGHT_SETTINGS[weightType].step;
         const valueText = document.createElement('input');
         valueText.classList.add('value');
         valueText.type = "number";
@@ -572,11 +586,11 @@ class WeightContextMenu {
         return valueText;
     }
 
-    #makeSliderComponent(sliderContainer, lbwPresetSelect, weightType, i, min, max, step) {
-        const slider = this.#makeSlider(Math.round(this.weightData[weightType][i]), min, max, step);
+    #makeSliderComponent(sliderContainer, lbwPresetSelect, weightType, i) {
+        const slider = this.#makeSlider(weightType, i);
         this.lbwUnits[weightType].slider.push(slider);
 
-        const updown = this.#makeUpdown(this.weightData[weightType][i], step);
+        const updown = this.#makeUpdown(weightType, i);
         this.lbwUnits[weightType].updown.push(updown);
 
         const changedLbwValues = () => {
@@ -617,17 +631,16 @@ class WeightContextMenu {
 
     #getUpdatedText(lbwValues) {
         let updatedText = `<${this.type}:${this.name}`;
-        const optionalTypeCount = 3;
-        const keyTypes = Object.keys(this.WEIGHT_SETTINGS);
+        const optionalTypes = ["te", "unet", "dyn"];
         let refIdx = 0;
-        for (let idx = 0; idx < keyTypes.length; idx++) {
-            const keyType = keyTypes[idx];
+        for (let idx = 0; idx < optionalTypes.length; idx++) {
+            const keyType = optionalTypes[idx];
             if (keyType in this.weightData) {
-                const defaultValues = this.WEIGHT_SETTINGS[keyType].default;
-                const values = this.weightData[keyType];
-                if (keyType == "te" || values != defaultValues) {
-                    let rateValue = values / 100;
-                    if (idx < optionalTypeCount && idx == refIdx) {
+                const defVal = this.WEIGHT_SETTINGS[keyType].default;
+                const val = this.weightData[keyType];
+                if (keyType == "te" || val != defVal) {
+                    let rateValue = val / 100;
+                    if (idx == refIdx) {
                         updatedText += `:${rateValue}`;
                     } else {
                         updatedText += `:${keyType}=${rateValue}`;
@@ -635,6 +648,17 @@ class WeightContextMenu {
                     refIdx++;
                 }
             }
+        }
+        const startDefVal = this.WEIGHT_SETTINGS["start"].default;
+        const startVal = this.weightData["start"]
+        const stopDefVal = this.WEIGHT_SETTINGS["stop"].default;
+        const stopVal = this.weightData["stop"]
+        if (startVal != startDefVal && stopVal != stopDefVal) {
+            updatedText += `:step=${startVal / 100}-${stopVal / 100}`;
+        } else if (startVal != startDefVal) {
+            updatedText += `:start=${startVal / 100}`;
+        } else if (stopVal != stopDefVal) {
+            updatedText += `:stop=${stopVal / 100}`;
         }
 
         let lbwWeights = [];
@@ -644,7 +668,7 @@ class WeightContextMenu {
                 lbwWeights.push(this.weightData["lbw"][idx]);
             }
         }
-        if (!lbwWeights.every(val => val == this.BLOCK_WEIGHT_SLIDER_SETTINGS.default)) {
+        if (!lbwWeights.every(val => val == this.WEIGHT_SETTINGS["lbw"].default)) {
             let rateValues = lbwWeights.map(v => v / 100).join(",");
             if (lbwValues in this.lbwPresetsValueKeyMap[this.weightType]) {
                 rateValues = this.lbwPresetsValueKeyMap[this.weightType][lbwValues];
