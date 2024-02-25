@@ -1,9 +1,10 @@
 #weight-helper {
+    text-align: center;
     transform-origin: left top;
     color: var(--body-text-color);
     background: var(--body-background-fill);
     border: var(--input-border-width) solid var(--border-color-primary);
-    box-shadow: 0px 0px 7px 0 rgba(0, 0, 0, 0.2);
+    box-shadow: 0px 0px 7px 0 var(--weight-helper-shadow);
     position: absolute;
     z-index: 1000;
 }
@@ -31,15 +32,15 @@
     padding-right: 4px;
 }
 #weight-helper > header .page .icon {
-    background-color: var(--block-label-text-color);
+    background-color: var(--block-info-text-color);
     color: var(--border-color-primary);
     border-radius: 10px;
     width: 15px;
     text-align: center;
     font-size: var(--text-xs);
 }
-#weight-helper > header .clear {
-    border: 1px solid var(--body-text-color-subdued);
+#weight-helper .clear {
+    border: 1px solid var(--block-info-text-color);
     border-radius: 10px;
     font-size: var(--text-xs);
     padding: 0px 9px;
@@ -49,18 +50,45 @@
     align-items: center;
     gap: 10px;
 }
+#weight-helper > header .history label {
+    width: 40px;
+}
 #weight-helper section {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 6px;
 }
+#weight-helper button {
+    cursor: pointer;
+    border: var(--button-border-width) solid var(--button-secondary-border-color);
+    background: var(--button-secondary-background-fill);
+    color: var(--button-secondary-text-color);
+    border-radius: 4px;
+
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    transition: var(--button-transition);
+    box-shadow: var(--button-shadow);
+    padding: var(--size-0-5) var(--size-2);
+    text-align: center;
+}
+#weight-helper button:hover {
+    border-color: var(--button-secondary-border-color-hover);
+    background: var(--button-secondary-background-fill-hover);
+    color: var(--button-secondary-text-color-hover);
+    box-shadow: var(--button-shadow-hover);
+}
+#weight-helper button:active {
+    box-shadow: var(--button-shadow-active);
+}
 #weight-helper .border {
     padding: 3px;
     border: 1px solid var(--block-border-color) !important;
     border-radius: 8px !important;
 }
-#weight-helper > section {
+#weight-helper > :not(header) {
     margin: 0 4px 4px;
 }
 #weight-helper label {

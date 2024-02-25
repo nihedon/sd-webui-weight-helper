@@ -15,7 +15,7 @@ class WeightContextMenu {
         },
         unet: {
             label: "UNet",
-            min: opts.weight_helper_unet_min * 100, max: opts.weight_helper_unet_max * 100, default: 0, step: opts.weight_helper_unet_step * 100
+            min: opts.weight_helper_unet_min * 100, max: opts.weight_helper_unet_max * 100, default: 100, step: opts.weight_helper_unet_step * 100
         },
         dyn: {
             label: "Dyn",
@@ -365,14 +365,9 @@ class WeightContextMenu {
         while (children.length > 0) {
             children[0].parentNode.removeChild(children[0]);
         }
+        const extraOpts = [];
+        let hiddenExtraOpts = 0;
         for (const weightType of Object.keys(this.WEIGHT_SETTINGS)) {
-
-            const dispSliderKey = `weight_helper_disp_${weightType}_slider`;
-            if (dispSliderKey in opts) {
-                if (!opts[dispSliderKey]) {
-                    continue;
-                }
-            }
 
             const weightSetting = this.WEIGHT_SETTINGS[weightType];
 
@@ -390,7 +385,30 @@ class WeightContextMenu {
             this.#makeSliderComponent(sliderContainer, null, weightType, 0, weightSetting.min, weightSetting.max, weightSetting.step);
             section.appendChild(sliderContainer);
 
-            this.customContextMenu.appendChild(section);
+            if (weightSetting.label == "TEnc") {
+                this.customContextMenu.appendChild(section);
+            } else {
+                extraOpts.push(section);
+                if (this.weightData[weightType][0] == this.WEIGHT_SETTINGS[weightType].default) {
+                    section.style.display = 'none';
+                    hiddenExtraOpts++;
+                }
+                this.customContextMenu.appendChild(section);
+            }
+        }
+
+        if (hiddenExtraOpts > 0) {
+            const extraButton = document.createElement('button');
+            extraButton.classList.add("secondary", "gradio-button");
+            extraButton.id = "weight-helper-show-extra-opt-button";
+            extraButton.textContent = "show extra options";
+            extraButton.addEventListener("click", (e) => {
+                e.target.remove();
+                for (const extra of extraOpts) {
+                    extra.style.display = '';
+                }
+            });
+            this.customContextMenu.appendChild(extraButton);
         }
 
         const weightType = "lbw";
@@ -598,17 +616,27 @@ class WeightContextMenu {
     }
 
     #getUpdatedText(lbwValues) {
-        const defaultMap = {};
-        for (const keyType of Object.keys(this.WEIGHT_SETTINGS)) {
-            defaultMap[keyType] = false;
+        let updatedText = `<${this.type}:${this.name}`;
+        const optionalTypeCount = 3;
+        const keyTypes = Object.keys(this.WEIGHT_SETTINGS);
+        let refIdx = 0;
+        for (let idx = 0; idx < keyTypes.length; idx++) {
+            const keyType = keyTypes[idx];
             if (keyType in this.weightData) {
+                const defaultValues = this.WEIGHT_SETTINGS[keyType].default;
                 const values = this.weightData[keyType];
-                if (values == this.WEIGHT_SETTINGS[keyType].default) {
-                    defaultMap[keyType] = true;
+                if (keyType == "te" || values != defaultValues) {
+                    let rateValue = values / 100;
+                    if (idx < optionalTypeCount && idx == refIdx) {
+                        updatedText += `:${rateValue}`;
+                    } else {
+                        updatedText += `:${keyType}=${rateValue}`;
+                    }
+                    refIdx++;
                 }
             }
         }
-        defaultMap["lbw"] = false;
+
         let lbwWeights = [];
         const enableBlocks = this.LBW_WEIGHT_SETTINGS[this.weightType].enable_blocks;
         for (let idx = 0; idx < enableBlocks.length; idx++) {
@@ -616,25 +644,7 @@ class WeightContextMenu {
                 lbwWeights.push(this.weightData["lbw"][idx]);
             }
         }
-        if (lbwWeights.every(val => val == this.BLOCK_WEIGHT_SLIDER_SETTINGS.default)) {
-            defaultMap["lbw"] = true;
-        }
-
-        let updatedText = `<${this.type}:${this.name}`;
-        for (const keyType of Object.keys(this.WEIGHT_SETTINGS)) {
-            if (keyType in this.weightData) {
-                if (keyType != "te") {
-                    if (!defaultMap[keyType]) {
-                        let rateValue = this.weightData[keyType] / 100;
-                        updatedText += `:${keyType}=${rateValue}`;
-                    }
-                } else {
-                    const rateValue = this.weightData[keyType] / 100;
-                    updatedText += `:${rateValue}`;
-                }
-            }
-        }
-        if (!defaultMap["lbw"] || (!defaultMap["unet"] || !defaultMap["dyn"])) {
+        if (!lbwWeights.every(val => val == this.BLOCK_WEIGHT_SLIDER_SETTINGS.default)) {
             let rateValues = lbwWeights.map(v => v / 100).join(",");
             if (lbwValues in this.lbwPresetsValueKeyMap[this.weightType]) {
                 rateValues = this.lbwPresetsValueKeyMap[this.weightType][lbwValues];
@@ -682,7 +692,8 @@ class WeightContextMenu {
         if (e && this.customContextMenu.contains(e.target)) {
             return;
         }
-        if (this.customContextMenu.parentNode == document.body) {
+        if (this.customContextMenu.parentNode == document.body
+                && e.target.id != "weight-helper-show-extra-opt-button") {
             close_contextMenu = undefined;
             if (e != null && e.target.id.indexOf("_interrupt") > 0) {
                 document.body.removeChild(this.customContextMenu);
@@ -743,6 +754,11 @@ const REGEX = /<([^:]+):([^:]+):([^>]+)>/;
 var lastWeightInfo = undefined;
 
 function init(_, tabId) {
+    let textColor = getComputedStyle(document.documentElement).getPropertyValue('--body-text-color').trim();
+    let textColorRgb = textColor.slice(1).match(/.{1,2}/g).map(hex => parseInt(hex, 16));
+    let textColorRgba = [...textColorRgb, 0.2];
+    document.documentElement.style.setProperty('--weight-helper-shadow', `rgba(${textColorRgba.join(",")})`);
+
     const genButtons = document.querySelectorAll("button:is([id*='_generate'])");
     genButtons.forEach((button) => {
         button.addEventListener('click', function(e) {
