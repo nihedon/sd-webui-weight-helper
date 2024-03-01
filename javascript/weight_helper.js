@@ -59,7 +59,7 @@ class WeightContextMenu {
         lyco_sdxl: {
             type: "lyco",
             name: "LyCORIS(SDXL)",
-            enable_blocks: [1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,0,0,0,0],
+            enable_blocks: [1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0],
             block_points: new Set([0, 1, 5, 10, 11, 15])
         }
     };
