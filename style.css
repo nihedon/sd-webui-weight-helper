@@ -131,12 +131,24 @@
     box-shadow: var(--input-shadow-focus);
     border-color: var(--input-border-color-focus);
 }
+#weight-helper label[for] {
+    cursor: pointer;
+}
+#weight-helper input[type="radio"] {
+    margin: 3px 0px 3px 4px;
+}
+#weight-helper label.radio-label {
+    padding-left: 0px;
+}
 #weight-helper .f {
     display: flex;
     justify-content: space-between;
 }
 #weight-helper .f-c {
     align-items: center;
+}
+#weight-helper .f-end {
+    justify-content: flex-end;
 }
 #weight-helper .col {
     flex-direction: column;
