@@ -121,7 +121,7 @@ class WeightContextMenu {
             for (let weightType of this.LBW_WEIGHT_TYPES) {
                 try {
                     const optBlockPoints = opts[`weight_helper_lbw_${weightTag.type}_${weightType.type}_block_points`]
-                    if (optBlockPattern.exec(optBlockPoinst).match()) {
+                    if (optBlockPattern.exec(optBlockPoints)) {
                         const blockPoints = optBlockPoints.split(',').map((v) => v.trim());
                         this.LBW_WEIGHT_SETTINGS[weightTag.type][weightType.type].block_points = blockPoints;
                     }
