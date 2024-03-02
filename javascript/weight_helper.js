@@ -1,5 +1,7 @@
 'use strict';
 
+const VERSION = "1.1.0"
+
 class WeightHelper {
 
     static REGEX = /<([^:]+):([^:]+):([^>]+)>/;
@@ -139,10 +141,12 @@ class WeightHelper {
             WeightHelper.weight_helper_history = {};
         }
         if (!(this.nameHash in WeightHelper.weight_helper_history)) {
+            WeightHelper.weight_helper_history[this.nameHash] = [];
+        }
+        WeightHelper.weight_helper_history[this.nameHash] = WeightHelper.weight_helper_history[this.nameHash].filter((v) => v.VERSION == VERSION);
+        if (WeightHelper.weight_helper_history[this.nameHash].length == 0) {
             const history = {};
             this.#copyWeight(this.weightData, history);
-
-            WeightHelper.weight_helper_history[this.nameHash] = [];
             WeightHelper.weight_helper_history[this.nameHash].push(history);
         }
         this.historyIndex = WeightHelper.weight_helper_history[this.nameHash].length - 1;
@@ -210,7 +214,7 @@ class WeightHelper {
             this.weightData[weightType] = []
             this.weightData[weightType].push(this.WEIGHT_SETTINGS[weightType].default);
         }
-        this.weightData["lbw"] = [];
+        this.weightData.lbw = [];
 
         const keyTypes = ["te", "unet", "dyn", "start", "stop"];
         const weightBlocksArray = allWeights.split(":");
@@ -242,10 +246,10 @@ class WeightHelper {
                         let refIdx = 0;
                         for (let enable of enableBlocks) {
                             if (enable) {
-                                this.weightData["lbw"].push(blocks[refIdx] * 100);
+                                this.weightData.lbw.push(blocks[refIdx] * 100);
                                 refIdx++;
                             } else {
-                                this.weightData["lbw"].push(0);
+                                this.weightData.lbw.push(0);
                             }
                         }
                         break;
@@ -253,16 +257,16 @@ class WeightHelper {
                 }
             } else if (keyType === "step") {
                 const startStop = blocks.split('-');
-                this.weightData["start"][0] = parseInt(startStop[0]) * 100;
-                this.weightData["stop"][0] = parseInt(startStop[1]) * 100;
+                this.weightData.start[0] = parseInt(startStop[0]) * 100;
+                this.weightData.stop[0] = parseInt(startStop[1]) * 100;
             } else {
                 this.weightData[keyType][0] = blocks * 100;
             }
         }
-        if (!this.weightData["lbw"].length) {
+        if (!this.weightData.lbw.length) {
             const enableBlocks = this.LBW_WEIGHT_SETTINGS[this.weightTag][this.weightType].enable_blocks;
             for (let _ of enableBlocks) {
-                this.weightData["lbw"].push(100);
+                this.weightData.lbw.push(100);
             }
         }
     }
@@ -600,7 +604,7 @@ class WeightHelper {
             lbwGroup.classList.add('border', 'f', 'g-2', 'col');
             for (let idx = pointStart; idx <= pointEnd; idx++) {
                 if (lbwWeightSetting.enable_blocks[idx] == 1) {
-                    lbwGroup.appendChild(this.weightUIs["lbw"].dom[idx]);
+                    lbwGroup.appendChild(this.weightUIs.lbw.dom[idx]);
                 }
             }
             this.lbwGroupWrapper.appendChild(lbwGroup);
@@ -610,7 +614,7 @@ class WeightHelper {
     #lbwWeightData() {
         const lbwWeightSetting = this.LBW_WEIGHT_SETTINGS[this.weightTag][this.weightType];
         const enableBlocks = lbwWeightSetting.enable_blocks;
-        return this.weightData["lbw"].filter((_, i) => enableBlocks[i] === 1).map(v => v / 100);
+        return this.weightData.lbw.filter((_, i) => enableBlocks[i] === 1).map(v => v / 100);
     }
 
     #copyWeight(srcWeight, destWeight) {
@@ -621,6 +625,7 @@ class WeightHelper {
                 destWeight[key][idx] = fVal;
             }
         });
+        destWeight.VERSION = VERSION;
     }
 
     #makeSlider(group, i) {
@@ -745,10 +750,10 @@ class WeightHelper {
                 }
             }
         }
-        const startDefVal = this.WEIGHT_SETTINGS["start"].default;
-        const startVal = this.weightData["start"]
-        const stopDefVal = this.WEIGHT_SETTINGS["stop"].default;
-        const stopVal = this.weightData["stop"]
+        const startDefVal = this.WEIGHT_SETTINGS.start.default;
+        const startVal = this.weightData.start;
+        const stopDefVal = this.WEIGHT_SETTINGS.stop.default;
+        const stopVal = this.weightData.stop;
         if (startVal != startDefVal && stopVal != stopDefVal) {
             updatedText += `:step=${startVal / 100}-${stopVal / 100}`;
         } else if (startVal != startDefVal) {
@@ -761,10 +766,10 @@ class WeightHelper {
         const enableBlocks = this.LBW_WEIGHT_SETTINGS[this.weightTag][this.weightType].enable_blocks;
         for (let idx = 0; idx < enableBlocks.length; idx++) {
             if (enableBlocks[idx]) {
-                lbwWeights.push(this.weightData["lbw"][idx]);
+                lbwWeights.push(this.weightData.lbw[idx]);
             }
         }
-        if (!lbwWeights.every(val => val === this.WEIGHT_SETTINGS["lbw"].default)) {
+        if (!lbwWeights.every(val => val === this.WEIGHT_SETTINGS.lbw.default)) {
             let rateValues = lbwWeights.map(v => v / 100).join(",");
             if (lbwValues in this.lbwPresetsValueKeyMap[this.weightTag][this.weightType]) {
                 rateValues = this.lbwPresetsValueKeyMap[this.weightTag][this.weightType][lbwValues];
@@ -827,6 +832,7 @@ class WeightHelper {
                     cancelable: true
                 }));
                 if (this.cleared || this.lastText != updatedText) {
+                    this.weightData.VERSION = VERSION;
                     WeightHelper.weight_helper_history[this.nameHash].push(this.weightData);
                     localStorage.setItem("weight_helper", JSON.stringify(WeightHelper.weight_helper_history));
                 }
@@ -841,6 +847,7 @@ class WeightHelper {
                     if (typeof TAC_CFG !== 'undefined' && TAC_CFG) {
                         TAC_CFG.activeIn.global = tacActiveInOrg;
                     }
+                    this.weightData.VERSION = VERSION;
                     WeightHelper.weight_helper_history[this.nameHash].push(this.weightData);
                     localStorage.setItem("weight_helper", JSON.stringify(WeightHelper.weight_helper_history));
                 }
