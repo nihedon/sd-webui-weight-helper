@@ -81,6 +81,9 @@ class WeightHelper {
         }
     };
 
+    currentDate = null;
+    historyLimitDate = null;
+
     offsetX = 0;
     offsetY = 0;
     isDragging = false;
@@ -116,6 +119,9 @@ class WeightHelper {
         this.lastSelectionEnd = selectionEnd;
         this.lastText = this.textarea.value.substring(this.lastSelectionStart, this.lastSelectionEnd);
 
+        this.currentDate = this.#getCurrentDate();
+        this.historyLimitDate = this.#getDateBeforeDays(this.currentDate, 20);
+
         this.weightTag = type;
         this.name = name;
         this.nameHash = this.#hashCode(name);
@@ -125,7 +131,7 @@ class WeightHelper {
             for (let weightType of this.LBW_WEIGHT_TYPES) {
                 try {
                     const optBlockPoints = opts[`weight_helper_lbw_${weightTag.type}_${weightType.type}_block_points`]
-                    if (optBlockPattern.exec(optBlockPoinst).match()) {
+                    if (optBlockPattern.exec(optBlockPoints)) {
                         const blockPoints = optBlockPoints.split(',').map((v) => v.trim());
                         this.LBW_WEIGHT_SETTINGS[weightTag.type][weightType.type].block_points = blockPoints;
                     }
@@ -143,7 +149,8 @@ class WeightHelper {
         if (!(this.nameHash in WeightHelper.weight_helper_history)) {
             WeightHelper.weight_helper_history[this.nameHash] = [];
         }
-        WeightHelper.weight_helper_history[this.nameHash] = WeightHelper.weight_helper_history[this.nameHash].filter((v) => v.VERSION == VERSION);
+        WeightHelper.weight_helper_history[this.nameHash] = WeightHelper.weight_helper_history[this.nameHash]
+                .filter(v => v.VERSION == VERSION).filter(v => v.DATE >= this.historyLimitDate);
         if (WeightHelper.weight_helper_history[this.nameHash].length == 0) {
             const history = {};
             this.#copyWeight(this.weightData, history);
@@ -173,6 +180,23 @@ class WeightHelper {
             hash = hash & hash; // Convert to 32bit integer
         }
         return hash;
+    }
+
+    #getCurrentDate() {
+        var date = new Date();
+        var year = date.getFullYear();
+        var month = ("0" + (date.getMonth() + 1)).slice(-2);
+        var day = ("0" + date.getDate()).slice(-2);
+        return year + month + day;
+    }
+
+    #getDateBeforeDays(currentDate, days) {
+        let date = new Date(currentDate.substring(0, 4), currentDate.substring(4, 6) - 1, currentDate.substring(6, 8));
+        date.setDate(date.getDate() - days);
+        let year = date.getFullYear();
+        let month = ("0" + (date.getMonth() + 1)).slice(-2);
+        let day = ("0" + date.getDate()).slice(-2);
+        return year + month + day;
     }
 
     #init(allWeights) {
@@ -626,6 +650,7 @@ class WeightHelper {
             }
         });
         destWeight.VERSION = VERSION;
+        destWeight.DATE = this.currentDate;
     }
 
     #makeSlider(group, i) {
@@ -833,6 +858,7 @@ class WeightHelper {
                 }));
                 if (this.cleared || this.lastText != updatedText) {
                     this.weightData.VERSION = VERSION;
+                    this.weightData.DATE = this.currentDate;
                     WeightHelper.weight_helper_history[this.nameHash].push(this.weightData);
                     localStorage.setItem("weight_helper", JSON.stringify(WeightHelper.weight_helper_history));
                 }
@@ -848,6 +874,7 @@ class WeightHelper {
                         TAC_CFG.activeIn.global = tacActiveInOrg;
                     }
                     this.weightData.VERSION = VERSION;
+                    this.weightData.DATE = this.currentDate;
                     WeightHelper.weight_helper_history[this.nameHash].push(this.weightData);
                     localStorage.setItem("weight_helper", JSON.stringify(WeightHelper.weight_helper_history));
                 }
