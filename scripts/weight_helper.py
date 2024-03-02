@@ -33,29 +33,41 @@ def on_ui_settings():
         "weight_helper_lbw_max": shared.OptionInfo(1, "LBW(Lora Block Weight) max value", gr.Number),
         "weight_helper_lbw_step": shared.OptionInfo(0.05, "LBW(Lora Block Weight) step", gr.Number),
 
-        "weight_helper_lbw_lora_block_points": shared.OptionInfo(
-            "0, 1, 4, 7, 8, 12",
-            "Advanced option - Lora block points"
+        "weight_helper_lbw_lora__block_points": shared.OptionInfo(
+            "BASE, IN01-IN04, IN05-IN08, MID, OUT03-OUT06, OUT07-OUT11",
+            "Advanced option - LoRA block points"
         ).info(
-            "default: 0, 1, 4, 7, 8, 12"
-        ),
-        "weight_helper_lbw_lyco_block_points": shared.OptionInfo(
-            "0, 1, 7, 13, 14, 20",
-            "Advanced option - Lyco block points"
-        ).info(
-            "default: 0, 1, 7, 13, 14, 20"
+            "default: BASE, IN01-IN04, IN05-IN08, MID, OUT03-OUT06, OUT07-OUT11"
         ),
         "weight_helper_lbw_lora_sdxl_block_points": shared.OptionInfo(
-            "0, 1, 5, 6",
-            "Advanced option - Lora(SDXL) block points"
+            "BASE, IN04-IN08, MID, OUT00-OUT05",
+            "Advanced option - LoRA(SDXL) block points"
         ).info(
-            "default: 0, 1, 5, 6"
+            "default: BASE, IN04-IN08, MID, OUT00-OUT05"
+        ),
+        "weight_helper_lbw_lora_all_block_points": shared.OptionInfo(
+            "BASE, IN00-IN05, IN06-IN11, MID, OUT00-OUT05, OUT06-OUT11",
+            "Advanced option - LoRA(Show ALL) bll block points"
+        ).info(
+            "default: BASE, IN00-IN05, IN06-IN11, MID, OUT00-OUT05, OUT06-OUT11"
+        ),
+        "weight_helper_lbw_lyco__block_points": shared.OptionInfo(
+            "BASE, IN00-IN05, IN06-IN11, MID, OUT00-OUT05, OUT06-OUT11",
+            "Advanced option - LyCORIS block points"
+        ).info(
+            "default: BASE, IN00-IN05, IN06-IN11, MID, OUT00-OUT05, OUT06-OUT11"
         ),
         "weight_helper_lbw_lyco_sdxl_block_points": shared.OptionInfo(
-            "0, 1, 5, 10, 11, 15",
-            "Advanced option - Lyco(SDXL) block points"
+            "BASE, IN00-IN03, IN04-IN08, MID, OUT00-OUT03, OUT04-OUT8",
+            "Advanced option - LyCORIS(SDXL) block points"
         ).info(
-            "default: 0, 1, 5, 10, 11, 15"
+            "default: BASE, IN00-IN03, IN04-IN08, MID, OUT00-OUT03, OUT04-OUT8"
+        ),
+        "weight_helper_lbw_lyco_all_block_points": shared.OptionInfo(
+            "BASE, IN00-IN05, IN06-IN11, MID, OUT00-OUT05, OUT06-OUT11",
+            "Advanced option - LyCORIS(Show ALL) block points"
+        ).info(
+            "default: BASE, IN00-IN05, IN06-IN11, MID, OUT00-OUT05, OUT06-OUT11"
         )
     }))
 
