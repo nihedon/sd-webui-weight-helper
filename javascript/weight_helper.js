@@ -230,8 +230,9 @@ class WeightHelper {
             this.weightData[weightType].push(this.WEIGHT_SETTINGS[weightType].default);
         }
         this.weightData.lbw = [];
+        this.weightData.lbwe = [];
 
-        const keyTypes = ["te", "unet", "dyn", "start", "stop"];
+        const keyTypes = ["te", "unet", "dyn"];
         const weightBlocksArray = allWeights.split(":");
         let isTypeDetermined = false;
         for (let i = 0; i < weightBlocksArray.length; i++) {
@@ -276,6 +277,8 @@ class WeightHelper {
                 const startStop = blocks.split('-');
                 this.weightData.start[0] = parseInt(startStop[0]) * 100;
                 this.weightData.stop[0] = parseInt(startStop[1]) * 100;
+            } else if (keyType === "lbwe") {
+                this.weightData[keyType][0] = blocks;
             } else {
                 this.weightData[keyType][0] = blocks * 100;
             }
@@ -813,6 +816,9 @@ class WeightHelper {
                 rateValues = this.lbwPresetsValueKeyMap[this.weightTag][this.weightType][lbwValues];
             }
             updatedText += `:lbw=${rateValues}`;
+        }
+        if (this.weightData.lbwe.length > 0) {
+            updatedText += `:lbwe=${this.weightData.lbwe[0]}`;
         }
         updatedText += ">";
         return updatedText;
