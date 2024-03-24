@@ -1,5 +1,47 @@
+import os
 import gradio as gr
+import importlib
+from fastapi import FastAPI
 from modules import script_callbacks, shared
+from modules import extra_networks
+
+prefix = "/whapi/v1"
+
+class WeightHelperAPI:
+
+    instance = None
+
+    def __init__(self):
+        self.preview_info_dic = {}
+
+    def init(self):
+        module_lora = importlib.import_module("extensions-builtin.Lora.lora")
+        for _, v in module_lora.available_loras.items():
+            dot = v.filename.rfind(".")
+            prev_filepath = v.filename[:dot] + ".preview.png"
+            if v.name not in self.preview_info_dic and os.path.exists(prev_filepath):
+                self.preview_info_dic[v.name] = prev_filepath
+                if v.name != v.alias:
+                    self.preview_info_dic[v.alias] = prev_filepath
+
+    def get_preview(self, key):
+        if key in self.preview_info_dic:
+            return self.preview_info_dic[key]
+        return None
+
+    @staticmethod
+    def init_endpoints(_: gr.Blocks, app: FastAPI):
+        if not WeightHelperAPI.instance:
+            WeightHelperAPI.instance = WeightHelperAPI()
+
+        instance = WeightHelperAPI.instance
+        @app.post(prefix + "/init")
+        async def _():
+            instance.init()
+
+        @app.post(prefix + "/get_preview")
+        async def _(key: str):
+            return instance.get_preview(key)
 
 def on_ui_settings():
     """
@@ -32,6 +74,12 @@ def on_ui_settings():
         "weight_helper_lbw_min": shared.OptionInfo(0, "LBW(Lora Block Weight) min value", gr.Number),
         "weight_helper_lbw_max": shared.OptionInfo(1, "LBW(Lora Block Weight) max value", gr.Number),
         "weight_helper_lbw_step": shared.OptionInfo(0.05, "LBW(Lora Block Weight) step", gr.Number),
+
+        'weight_helper_show_preview': shared.OptionInfo(True, 'Show preview'),
+        "weight_helper_preview_max_height": shared.OptionInfo(300, "Preview max height(px)", gr.Number),
+        "weight_helper_preview_position": shared.OptionInfo("Top Right", "Preview position", gr.Radio, {
+            "choices": ["Top Right", "Bottom Right", "Top Left", "Bottom Left"]
+        }),
 
         "weight_helper_lbw_lora__block_points": shared.OptionInfo(
             "BASE, IN01-IN04, IN05-IN08, MID, OUT03-OUT06, OUT07-OUT11",
@@ -72,3 +120,4 @@ def on_ui_settings():
     }))
 
 script_callbacks.on_ui_settings(on_ui_settings)
+script_callbacks.on_app_started(WeightHelperAPI.init_endpoints)

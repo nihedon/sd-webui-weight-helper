@@ -146,6 +146,37 @@ class WeightHelper {
         this.#init(allWeights);
 
         this.#initContextMenuHeader();
+
+        if (opts.weight_helper_show_preview) {
+            (async() => {
+                const previewPath = await postAPI("/whapi/v1/get_preview?key=" + this.name, null);
+                if (previewPath) {
+                    const thumb = document.getElementById("weight-helper-thumb");
+
+                    thumb.style.maxHeight = opts.weight_helper_preview_max_height + "px";
+                    switch (opts.weight_helper_preview_position) {
+                        case "Bottom Right":
+                            thumb.style.bottom = "0px";
+                            thumb.style.left = String(this.customContextMenu.clientWidth + 6) + "px";
+                            break;
+                        case "Top Left":
+                            thumb.style.top = "0px"
+                            thumb.style.right = String(this.customContextMenu.clientWidth + 6) + "px";
+                            break;
+                        case "Bottom Left":
+                            thumb.style.bottom = "0px";
+                            thumb.style.right = String(this.customContextMenu.clientWidth + 6) + "px";
+                            break;
+                        default:
+                            thumb.style.top = "0px"
+                            thumb.style.left = String(this.customContextMenu.clientWidth + 6) + "px";
+                            break;
+                    }
+                    thumb.src = "./sd_extra_networks/thumb?filename=" + encodeURI(previewPath);
+                }
+            })();
+        }
+
         this.#initContextMenuBody();
         this.#makeLbwGroupWrapper();
 
@@ -321,6 +352,10 @@ class WeightHelper {
             scale = 1;
         }
         this.customContextMenu.style.transform = `scale(${scale})`;
+
+        const thumb = document.createElement("img");
+        thumb.id = "weight-helper-thumb";
+        this.customContextMenu.appendChild(thumb);
 
         const header = document.createElement('header');
 
@@ -926,6 +961,7 @@ async function getTab(tabName) {
 document.addEventListener('DOMContentLoaded', function() {
     (async() => {
         const tabId = "txt2img";
+        await postAPI("/whapi/v1/init", null);
         init(await getTab(tabId), tabId);
     })();
 });

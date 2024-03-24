@@ -3,10 +3,10 @@
     transform-origin: left top;
     color: var(--body-text-color);
     background: var(--body-background-fill);
-    border: var(--input-border-width) solid var(--border-color-primary);
-    box-shadow: 0px 0px 7px 0 var(--weight-helper-shadow);
     position: absolute;
     z-index: 1000;
+    border: var(--input-border-width) solid var(--border-color-primary);
+    box-shadow: 0px 0px 7px 0 var(--weight-helper-shadow);
 }
 #weight-helper > header {
     height: 24px;
@@ -18,18 +18,23 @@
     justify-content: space-between;
     align-items: center;
     padding: 0px 3px;
+    cursor: move;
 }
 #weight-helper > header > label {
     max-width: 190px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    pointer-events: none;
 }
 #weight-helper > header .page {
     display: flex;
     align-items: center;
     column-gap: 6px;
     padding-right: 4px;
+}
+#weight-helper > header .page > label {
+    pointer-events: none;
 }
 #weight-helper > header .page .icon {
     background-color: var(--block-info-text-color);
@@ -88,7 +93,8 @@
     border: 1px solid var(--block-border-color) !important;
     border-radius: 8px !important;
 }
-#weight-helper > :not(header) {
+#weight-helper > section, 
+#weight-helper > button {
     margin: 0 4px 4px;
 }
 #weight-helper label {
@@ -139,6 +145,17 @@
 }
 #weight-helper label.radio-label {
     padding-left: 0px;
+}
+#weight-helper-thumb {
+    position: absolute;
+    margin: 0;
+    border: var(--input-border-width) solid var(--border-color-primary);
+    box-shadow: 0px 0px 7px 0 var(--weight-helper-shadow);
+}
+#weight-helper img {
+    user-drag: none;
+	-webkit-user-drag: none;
+	-moz-user-select: none;
 }
 #weight-helper .f {
     display: flex;
