@@ -1,6 +1,8 @@
 'use strict';
 
 const VERSION = "1.1.0"
+var weight_helper_history = JSON.parse(localStorage.getItem("weight_helper"));
+var weight_helper_type = JSON.parse(localStorage.getItem("weight_helper_type"));
 
 class WeightHelper {
 
@@ -143,21 +145,6 @@ class WeightHelper {
 
         this.#init(allWeights);
 
-        if (!WeightHelper.weight_helper_history) {
-            WeightHelper.weight_helper_history = {};
-        }
-        if (!(this.nameHash in WeightHelper.weight_helper_history)) {
-            WeightHelper.weight_helper_history[this.nameHash] = [];
-        }
-        WeightHelper.weight_helper_history[this.nameHash] = WeightHelper.weight_helper_history[this.nameHash]
-                .filter(v => v.VERSION == VERSION).filter(v => v.DATE >= this.historyLimitDate);
-        if (WeightHelper.weight_helper_history[this.nameHash].length == 0) {
-            const history = {};
-            this.#copyWeight(this.weightData, history);
-            WeightHelper.weight_helper_history[this.nameHash].push(history);
-        }
-        this.historyIndex = WeightHelper.weight_helper_history[this.nameHash].length - 1;
-
         this.#initContextMenuHeader();
         this.#initContextMenuBody();
         this.#makeLbwGroupWrapper();
@@ -200,6 +187,10 @@ class WeightHelper {
     }
 
     #init(allWeights) {
+        if (!weight_helper_type) {
+            weight_helper_type = {};
+        }
+
         const samplingSteps = gradioApp().getElementById("txt2img_steps").querySelector("input");
         if (samplingSteps) {
             const samplingStepsValue = parseInt(samplingSteps.value) * 100;
@@ -242,6 +233,7 @@ class WeightHelper {
 
         const keyTypes = ["te", "unet", "dyn", "start", "stop"];
         const weightBlocksArray = allWeights.split(":");
+        let isTypeDetermined = false;
         for (let i = 0; i < weightBlocksArray.length; i++) {
             let weightKeyVal = weightBlocksArray[i].split("=");
             let keyType;
@@ -267,6 +259,7 @@ class WeightHelper {
                     const enableBlocks = lbwWeightSetting.enable_blocks;
                     if (blocks.length == enableBlocks.filter((b) => b == 1).length) {
                         this.weightType = weightType.type;
+                        isTypeDetermined = true;
                         let refIdx = 0;
                         for (let enable of enableBlocks) {
                             if (enable) {
@@ -287,12 +280,32 @@ class WeightHelper {
                 this.weightData[keyType][0] = blocks * 100;
             }
         }
+        if (!isTypeDetermined) {
+            if (this.nameHash in weight_helper_type) {
+                this.weightType = weight_helper_type[this.nameHash]
+            }
+        }
         if (!this.weightData.lbw.length) {
             const enableBlocks = this.LBW_WEIGHT_SETTINGS[this.weightTag][this.weightType].enable_blocks;
             for (let _ of enableBlocks) {
                 this.weightData.lbw.push(100);
             }
         }
+
+        if (!WeightHelper.weight_helper_history) {
+            WeightHelper.weight_helper_history = {};
+        }
+        if (!(this.nameHash in WeightHelper.weight_helper_history)) {
+            WeightHelper.weight_helper_history[this.nameHash] = [];
+        }
+        WeightHelper.weight_helper_history[this.nameHash] = WeightHelper.weight_helper_history[this.nameHash]
+                .filter(v => v.VERSION == VERSION).filter(v => v.DATE >= this.historyLimitDate);
+        if (WeightHelper.weight_helper_history[this.nameHash].length == 0) {
+            const history = {};
+            this.#copyWeight(this.weightData, history);
+            WeightHelper.weight_helper_history[this.nameHash].push(history);
+        }
+        this.historyIndex = WeightHelper.weight_helper_history[this.nameHash].length - 1;
     }
 
     #initContextMenuHeader() {
@@ -850,6 +863,14 @@ class WeightHelper {
                 window.removeEventListener("click", this.close);
                 return;
             }
+
+            if (!this.weightType) {
+                delete weight_helper_type[this.nameHash];
+            } else {
+                weight_helper_type[this.nameHash] = this.weightType;
+            }
+            localStorage.setItem("weight_helper_type", JSON.stringify(weight_helper_type));
+
             const updatedText = this.#getUpdatedText(this.#lbwWeightData().join(","));
             if (!this.usingExecCommand) {
                 this.textarea.dispatchEvent(new InputEvent('input', {
