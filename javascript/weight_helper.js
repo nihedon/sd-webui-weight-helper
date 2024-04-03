@@ -149,7 +149,7 @@ class WeightHelper {
 
         if (opts.weight_helper_show_preview) {
             (async() => {
-                const previewPath = await postAPI("/whapi/v1/get_preview?key=" + this.name, null);
+                const previewPath = await postAPI("/whapi/v1/get_preview?key=" + encodeURIComponent(this.name), null);
                 if (previewPath) {
                     const thumb = document.getElementById("weight-helper-thumb");
 
