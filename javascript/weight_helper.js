@@ -947,6 +947,15 @@ class WeightHelper {
     };
 }
 
+async function postAPI(url, body) {
+    let response = await fetch(url, { method: "POST", body: body });
+    if (response.status != 200) {
+        console.error(`Error posting to API endpoint "${url}": ` + response.status, response.statusText);
+        return null;
+    }
+    return await response.json();
+}
+
 async function getTab(tabName) {
     let tab = null;
     while (!tab) {
