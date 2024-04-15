@@ -1,33 +1,19 @@
 import os
+import functools
 import gradio as gr
 import importlib
+import json
+import urllib.parse
 from fastapi import FastAPI
-from modules import script_callbacks, shared
-from modules import extra_networks
+from modules import script_callbacks, shared, util
 
 prefix = "/whapi/v1"
+
+allowed_preview_extensions = ["png", "jpg", "jpeg", "webp", "gif"]
 
 class WeightHelperAPI:
 
     instance = None
-
-    def __init__(self):
-        self.preview_info_dic = {}
-
-    def init(self):
-        module_lora = importlib.import_module("extensions-builtin.Lora.lora")
-        for _, v in module_lora.available_loras.items():
-            dot = v.filename.rfind(".")
-            prev_filepath = v.filename[:dot] + ".preview.png"
-            if v.name not in self.preview_info_dic and os.path.exists(prev_filepath):
-                self.preview_info_dic[v.name] = prev_filepath
-                if v.name != v.alias:
-                    self.preview_info_dic[v.alias] = prev_filepath
-
-    def get_preview(self, key):
-        if key in self.preview_info_dic:
-            return self.preview_info_dic[key]
-        return None
 
     @staticmethod
     def init_endpoints(_: gr.Blocks, app: FastAPI):
@@ -35,13 +21,65 @@ class WeightHelperAPI:
             WeightHelperAPI.instance = WeightHelperAPI()
 
         instance = WeightHelperAPI.instance
-        @app.post(prefix + "/init")
-        async def _():
-            instance.init()
-
         @app.post(prefix + "/get_preview")
         async def _(key: str):
             return instance.get_preview(key)
+
+    def __new__(cls, *args, **kwargs):
+        if not cls.instance:
+            cls.instance = super(WeightHelperAPI, cls).__new__(cls, *args, **kwargs)
+        return cls.instance
+
+    def __init__(self):
+        self.module_lora = importlib.import_module("extensions-builtin.Lora.lora")
+        self.lister = util.MassFileLister()
+
+    def get_preview(self, key):
+        lora = self.module_lora.available_lora_aliases.get(key)
+        if not lora:
+            return None
+
+        path, _ = os.path.splitext(lora.filename)
+        preview = self._find_preview(path)
+        description = self._find_description(path)
+        modelId = self._find_civitai_model_id(path)
+        return lora.alias, preview, description, modelId
+
+    def _link_preview(self, filename):
+        quoted_filename = urllib.parse.quote(filename.replace('\\', '/'))
+        mtime, _ = self.lister.mctime(filename)
+        #use browser cache
+        #return f"./sd_extra_networks/thumb?filename={quoted_filename}&mtime={mtime}"
+        return f"./sd_extra_networks/thumb?filename={quoted_filename}"
+
+    def _find_preview(self, path):
+        potential_files = sum([[f"{path}.{ext}", f"{path}.preview.{ext}"] for ext in allowed_preview_extensions], [])
+        for file in potential_files:
+            if self.lister.exists(file):
+                return self._link_preview(file)
+        return "./file=html/card-no-preview.png"
+
+    @functools.cache
+    def _find_description(self, path):
+        for file in [f"{path}.txt", f"{path}.description.txt"]:
+            if self.lister.exists(file):
+                try:
+                    with open(file, "r", encoding="utf-8", errors="replace") as f:
+                        return f.read()
+                except OSError:
+                    pass
+        return None
+
+    @functools.cache
+    def _find_civitai_model_id(self, path):
+        civitai_info = f"{path}.civitai.info"
+        if self.lister.exists(civitai_info):
+            try:
+                with open(civitai_info, "r", encoding="utf-8", errors="replace") as f:
+                    return json.load(f).get("modelId")
+            except OSError:
+                pass
+        return None
 
 def on_ui_settings():
     """
@@ -76,7 +114,7 @@ def on_ui_settings():
         "weight_helper_lbw_step": shared.OptionInfo(0.05, "LBW(Lora Block Weight) step", gr.Number),
 
         'weight_helper_show_preview': shared.OptionInfo(True, 'Show preview'),
-        "weight_helper_preview_max_height": shared.OptionInfo(300, "Preview max height(px)", gr.Number),
+        "weight_helper_preview_height": shared.OptionInfo(400, "Preview height(px)", gr.Number),
         "weight_helper_preview_position": shared.OptionInfo("Top Right", "Preview position", gr.Radio, {
             "choices": ["Top Right", "Bottom Right", "Top Left", "Bottom Left"]
         }),

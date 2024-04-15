@@ -148,33 +148,7 @@ class WeightHelper {
         this.#initContextMenuHeader();
 
         if (opts.weight_helper_show_preview) {
-            (async() => {
-                const previewPath = await postAPI("/whapi/v1/get_preview?key=" + encodeURIComponent(this.name), null);
-                if (previewPath) {
-                    const thumb = document.getElementById("weight-helper-thumb");
-
-                    thumb.style.maxHeight = opts.weight_helper_preview_max_height + "px";
-                    switch (opts.weight_helper_preview_position) {
-                        case "Bottom Right":
-                            thumb.style.bottom = "0px";
-                            thumb.style.left = String(this.customContextMenu.clientWidth + 6) + "px";
-                            break;
-                        case "Top Left":
-                            thumb.style.top = "0px"
-                            thumb.style.right = String(this.customContextMenu.clientWidth + 6) + "px";
-                            break;
-                        case "Bottom Left":
-                            thumb.style.bottom = "0px";
-                            thumb.style.right = String(this.customContextMenu.clientWidth + 6) + "px";
-                            break;
-                        default:
-                            thumb.style.top = "0px"
-                            thumb.style.left = String(this.customContextMenu.clientWidth + 6) + "px";
-                            break;
-                    }
-                    thumb.src = "./sd_extra_networks/thumb?filename=" + encodeURI(previewPath);
-                }
-            })();
+            this.#makePreview();
         }
 
         this.#initContextMenuBody();
@@ -352,10 +326,6 @@ class WeightHelper {
             scale = 1;
         }
         this.customContextMenu.style.transform = `scale(${scale})`;
-
-        const thumb = document.createElement("img");
-        thumb.id = "weight-helper-thumb";
-        this.customContextMenu.appendChild(thumb);
 
         const header = document.createElement('header');
 
@@ -870,6 +840,83 @@ class WeightHelper {
         document.execCommand("insertText", false, updatedText);
     }
 
+    async #makePreview() {
+        const res = await postAPI("/whapi/v1/get_preview?key=" + encodeURIComponent(this.name), null);
+        const alias = res[0];
+        const previewPath = res[1];
+        const description = res[2];
+        const modelId = res[3];
+        if (previewPath) {
+            const pane = document.createElement("div");
+            pane.classList.add("extra-network-pane");
+
+            const card = document.createElement("div");
+            card.classList.add("card");
+            pane.appendChild(card);
+
+            const img = document.createElement("img");
+            img.classList.add("preview");
+            img.setAttribute("src", previewPath);
+            card.appendChild(img);
+
+            const buttonRow = document.createElement("div");
+            buttonRow.classList.add("button-row");
+            card.appendChild(buttonRow);
+
+            if (modelId) {
+                const civitaiButton = document.createElement("div");
+                civitaiButton.classList.add("civitai-button", "card-button");
+                civitaiButton.setAttribute("title", "Open civitai");
+                civitaiButton.addEventListener("click", () => window.open(`https://civitai.com/models/${modelId}`, '_blank'));
+                buttonRow.appendChild(civitaiButton);
+            }
+
+            const metadataButton = document.createElement("div");
+            metadataButton.classList.add("metadata-button", "card-button");
+            metadataButton.setAttribute("title", "Show internal metadata");
+            metadataButton.addEventListener("click", (event) => extraNetworksRequestMetadata(event, 'lora', alias));
+            buttonRow.appendChild(metadataButton);
+
+            const editButton = document.createElement("div");
+            editButton.classList.add("edit-button", "card-button");
+            editButton.setAttribute("title", "Edit metadata");
+            editButton.addEventListener("click", (event) => extraNetworksEditUserMetadata(event, 'txt2img', 'lora', alias));
+            buttonRow.appendChild(editButton);
+
+            if (description) {
+                const actions = document.createElement("div");
+                actions.classList.add("actions");
+                card.appendChild(actions);
+
+                const actDesc = document.createElement("span");
+                actDesc.classList.add("description");
+                actDesc.textContent = description;
+                actions.appendChild(actDesc);
+            }
+
+            img.style.height = opts.weight_helper_preview_height + "px";
+            switch (opts.weight_helper_preview_position) {
+                case "Bottom Right":
+                    pane.style.bottom = "0px";
+                    pane.style.left = String(this.customContextMenu.clientWidth + 6) + "px";
+                    break;
+                case "Top Left":
+                    pane.style.top = "0px"
+                    pane.style.right = String(this.customContextMenu.clientWidth + 6) + "px";
+                    break;
+                case "Bottom Left":
+                    pane.style.bottom = "0px";
+                    pane.style.right = String(this.customContextMenu.clientWidth + 6) + "px";
+                    break;
+                default:
+                    pane.style.top = "0px"
+                    pane.style.left = String(this.customContextMenu.clientWidth + 6) + "px";
+                    break;
+            }
+            this.customContextMenu.prepend(pane);
+        }
+    }
+
     show(top, left) {
         this.customContextMenu.style.top = top + 'px';
         this.customContextMenu.style.left = left + 'px';
@@ -970,7 +1017,6 @@ async function getTab(tabName) {
 document.addEventListener('DOMContentLoaded', function() {
     (async() => {
         const tabId = "txt2img";
-        await postAPI("/whapi/v1/init", null);
         init(await getTab(tabId), tabId);
     })();
 });
@@ -978,7 +1024,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function init(_, tabId) {
     let textColor = getComputedStyle(document.documentElement).getPropertyValue('--body-text-color').trim();
     let textColorRgb = textColor.slice(1).match(/.{1,2}/g).map(hex => parseInt(hex, 16));
-    let textColorRgba = [...textColorRgb, 0.2];
+    let textColorRgba = [...textColorRgb, 0.3];
     document.documentElement.style.setProperty('--weight-helper-shadow', `rgba(${textColorRgba.join(",")})`);
 
     const genButtons = document.querySelectorAll("button:is([id*='_generate'])");
