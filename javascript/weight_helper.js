@@ -196,7 +196,7 @@ class WeightHelper {
             weight_helper_type = {};
         }
 
-        const samplingSteps = gradioApp().getElementById("txt2img_steps").querySelector("input");
+        const samplingSteps = gradioApp().getElementById(`${this.tabId}_steps`).querySelector("input");
         if (samplingSteps) {
             const samplingStepsValue = parseInt(samplingSteps.value) * 100;
             this.WEIGHT_SETTINGS.start.max = samplingStepsValue;
@@ -880,7 +880,7 @@ class WeightHelper {
             const editButton = document.createElement("div");
             editButton.classList.add("edit-button", "card-button");
             editButton.setAttribute("title", "Edit metadata");
-            editButton.addEventListener("click", (event) => extraNetworksEditUserMetadata(event, 'txt2img', 'lora', alias));
+            editButton.addEventListener("click", (event) => extraNetworksEditUserMetadata(event, this.tabId, 'lora', alias));
             buttonRow.appendChild(editButton);
 
             if (description) {
