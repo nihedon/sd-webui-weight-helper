@@ -10,6 +10,8 @@ class WeightHelper {
 
     static SUPPORT_TYPE = new Set(["lora", "lyco"]);
 
+    static SPECIAL_KEYWORDS = ["XYZ"];
+
     static weight_helper_history = JSON.parse(localStorage.getItem("weight_helper"));
 
     static last_instance = undefined;
@@ -255,6 +257,13 @@ class WeightHelper {
             }
             if (keyType === "lbw") {
                 blocks = weightKeyVal[1].split(',');
+
+                if (blocks.length === 1 && WeightHelper.SPECIAL_KEYWORDS.includes(blocks[0])) {
+                    this.weightData.special = blocks[0];
+                } else {
+                    this.weightData.special = undefined;
+                }
+
                 for (const weightType of this.LBW_WEIGHT_TYPES) {
                     const lbwPresets = this.lbwPresetsMap[this.weightTag][weightType.type];
                     if (blocks in lbwPresets) {
@@ -265,7 +274,7 @@ class WeightHelper {
                 for (const weightType of this.LBW_WEIGHT_TYPES) {
                     const lbwWeightSetting = this.LBW_WEIGHT_SETTINGS[this.weightTag][weightType.type];
                     const enableBlocks = lbwWeightSetting.enable_blocks;
-                    if (blocks.length == enableBlocks.filter((b) => b == 1).length) {
+                    if (blocks.length === enableBlocks.filter((b) => b == 1).length) {
                         this.weightType = weightType.type;
                         isTypeDetermined = true;
                         let refIdx = 0;
@@ -524,6 +533,14 @@ class WeightHelper {
         lbwTagSelect.addEventListener("change", (e) => {
             this.weightTag = e.target.value;
             this.#makeLbwGroupWrapper();
+            if (!this.usingExecCommand) {
+                let lbwValues = null;
+                if (!this.weightData.special) {
+                    lbwValues = this.#lbwWeightData().join(",");
+                }
+                const updatedText = this.#getUpdatedText(lbwValues);
+                this.#update(updatedText);
+            }
         });
         typeRow.appendChild(lbwTagSelect);
 
@@ -543,6 +560,14 @@ class WeightHelper {
             weightTypeRadio.addEventListener("change", (e) => {
                 this.weightType = e.target.value;
                 this.#makeLbwGroupWrapper();
+                if (!this.usingExecCommand) {
+                    let lbwValues = null;
+                    if (!this.weightData.special) {
+                        lbwValues = this.#lbwWeightData().join(",");
+                    }
+                    const updatedText = this.#getUpdatedText(lbwValues);
+                    this.#update(updatedText);
+                }
             });
             typeType.appendChild(weightTypeRadio);
 
@@ -561,27 +586,49 @@ class WeightHelper {
         lbwSet.appendChild(this.lbwPresetSelect);
 
         this.lbwPresetSelect.addEventListener("change", (e) => {
-            if (e.target.value === "") {
-                return;
+            const selectVal = e.target.value;
+            const isSpecial = WeightHelper.SPECIAL_KEYWORDS.includes(selectVal);
+            if (!isSpecial) {
+                this.weightData.special = undefined;
+                this.lbwGroupWrapper.style.display = "flex";
+            } else {
+                this.weightData.special = selectVal;
+                this.lbwGroupWrapper.style.display = "none";
             }
 
-            const lbwWeightSetting = this.LBW_WEIGHT_SETTINGS[this.weightTag][this.weightType];
-            const enableBlocks = lbwWeightSetting.enable_blocks;
-            const values = e.target.value.split(",").map(v => Math.round(parseFloat(v) * 100));
-            let refIdx = 0;
-            for (let idx = 0; idx < enableBlocks.length; idx++) {
-                let val = 0;
-                if (enableBlocks[idx] === 1) {
-                    val = values[refIdx];
-                    refIdx++;
+            if (!isSpecial) {
+                const lbwWeightSetting = this.LBW_WEIGHT_SETTINGS[this.weightTag][this.weightType];
+                const enableBlocks = lbwWeightSetting.enable_blocks;
+                let values;
+                if (selectVal === "") {
+                    values = [];
+                    for (let idx = 0; idx < enableBlocks.length; idx++) {
+                        if (enableBlocks[idx] === 1) {
+                            const val = this.weightData.lbw[idx];
+                            values.push(val);
+                        }
+                    }
+                } else {
+                    values = selectVal.split(",").map(v => Math.round(parseFloat(v) * 100));
                 }
-                this.weightData[group][idx] = val;
-                this.weightUIs[group].slider[idx].value = val;
-                this.weightUIs[group].updown[idx].value = val / 100;
+                let refIdx = 0;
+                for (let idx = 0; idx < enableBlocks.length; idx++) {
+                    let val = 0;
+                    if (enableBlocks[idx] === 1) {
+                        val = values[refIdx];
+                        refIdx++;
+                    }
+                    this.weightData[group][idx] = val;
+                    this.weightUIs[group].slider[idx].value = val;
+                    this.weightUIs[group].updown[idx].value = val / 100;
+                }
             }
 
             if (!this.usingExecCommand) {
-                const lbwValues = this.#lbwWeightData().join(",");
+                let lbwValues = null;
+                if (!isSpecial) {
+                    lbwValues = this.#lbwWeightData().join(",");
+                }
                 const updatedText = this.#getUpdatedText(lbwValues);
                 this.#update(updatedText);
             }
@@ -606,6 +653,11 @@ class WeightHelper {
 
         this.lbwGroupWrapper = document.createElement('div');
         this.lbwGroupWrapper.classList.add('lbw-group-wrapper', 'f', 'col', 'g-2');
+        if (!this.weightData.special) {
+            this.lbwGroupWrapper.style.display = "flex";
+        } else {
+            this.lbwGroupWrapper.style.display = "none";
+        }
 
         lbwSet.appendChild(this.lbwGroupWrapper);
         this.customContextMenu.appendChild(lbwSection);
@@ -619,6 +671,13 @@ class WeightHelper {
         opt.value = "";
         opt.text = "";
         this.lbwPresetSelect.appendChild(opt);
+
+        for (const sp of WeightHelper.SPECIAL_KEYWORDS) {
+            const spOpt = document.createElement('option');
+            spOpt.value = sp;
+            spOpt.text = sp;
+            this.lbwPresetSelect.appendChild(spOpt);
+        }
 
         if (Object.keys(this.lbwPresetsMap[this.weightTag][this.weightType]).length) {
             for (const key of Object.keys(this.lbwPresetsMap[this.weightTag][this.weightType])) {
@@ -659,6 +718,9 @@ class WeightHelper {
     }
 
     #lbwWeightData() {
+        if (this.weightData.special) {
+            return this.weightData.special;
+        }
         const lbwWeightSetting = this.LBW_WEIGHT_SETTINGS[this.weightTag][this.weightType];
         const enableBlocks = lbwWeightSetting.enable_blocks;
         return this.weightData.lbw.filter((_, i) => enableBlocks[i] === 1).map(v => v / 100);
@@ -732,6 +794,7 @@ class WeightHelper {
         const changedLbwValues = () => {
             let lbwValues = null;
             if (lbwPresetSelect && group === "lbw") {
+                this.weightData.special = undefined;
                 lbwValues = this.#lbwWeightData().join(",");
                 if (lbwValues in this.lbwPresetsValueKeyMap[this.weightTag][this.weightType]) {
                     lbwPresetSelect.value = lbwValues;
@@ -746,7 +809,7 @@ class WeightHelper {
                 }
             }
             if (!this.usingExecCommand) {
-                if (!lbwValues) {
+                if (!lbwValues && !this.weightData.special) {
                     lbwValues = this.#lbwWeightData().join(",");
                 }
                 const updatedText = this.#getUpdatedText(lbwValues);
@@ -817,12 +880,16 @@ class WeightHelper {
                 lbwWeights.push(this.weightData.lbw[idx]);
             }
         }
-        if (!lbwWeights.every(val => val === this.WEIGHT_SETTINGS.lbw.default)) {
-            let rateValues = lbwWeights.map(v => v / 100).join(",");
-            if (lbwValues in this.lbwPresetsValueKeyMap[this.weightTag][this.weightType]) {
-                rateValues = this.lbwPresetsValueKeyMap[this.weightTag][this.weightType][lbwValues];
+        if (!this.weightData.special) {
+            if (!lbwWeights.every(val => val === this.WEIGHT_SETTINGS.lbw.default)) {
+                let rateValues = lbwWeights.map(v => v / 100).join(",");
+                if (lbwValues in this.lbwPresetsValueKeyMap[this.weightTag][this.weightType]) {
+                    rateValues = this.lbwPresetsValueKeyMap[this.weightTag][this.weightType][lbwValues];
+                }
+                updatedText += `:lbw=${rateValues}`;
             }
-            updatedText += `:lbw=${rateValues}`;
+        } else {
+            updatedText += `:lbw=${this.weightData.special}`;
         }
         if (this.weightData.lbwe.length > 0) {
             updatedText += `:lbwe=${this.weightData.lbwe[0]}`;
@@ -971,7 +1038,12 @@ class WeightHelper {
                 return;
             }
 
-            const updatedText = this.#getUpdatedText(this.#lbwWeightData().join(","));
+            let updatedText;
+            if (!this.weightData.special) {
+                updatedText = this.#getUpdatedText(this.#lbwWeightData().join(","));
+            } else {
+                updatedText = this.#getUpdatedText();
+            }
             const changed = this.lastText != updatedText;
             if (changed) {
                 if (!this.usingExecCommand) {
@@ -980,7 +1052,7 @@ class WeightHelper {
                     this.#updateWithExecCommand(updatedText);
                 }
             }
-            if (this.cleared || changed) {
+            if (!this.weightData.special && (this.cleared || changed)) {
                 this.#doSave();
             }
             document.body.removeChild(this.customContextMenu);
