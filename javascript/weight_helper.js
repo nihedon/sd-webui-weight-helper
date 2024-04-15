@@ -364,6 +364,35 @@ class WeightHelper {
         pageWrapper.classList.add("page");
         history.appendChild(pageWrapper);
 
+        const restoreFromHistory = () => {
+            Object.keys(this.weightData).map(key => {
+                for (const idx in this.weightData[key]) {
+                    const fVal = this.weightData[key][idx];
+                    if (key in this.weightUIs) {
+                        this.weightUIs[key].slider[idx].value = fVal;
+                        this.weightUIs[key].updown[idx].value = fVal / 100;
+                    }
+                }
+            });
+
+            if (this.weightData.special) {
+                this.weightData.special = undefined;
+                this.lbwGroupWrapper.style.display = "flex";
+            }
+
+            const lbwValues = this.#lbwWeightData().join(",");
+            if (lbwValues in this.lbwPresetsValueKeyMap[this.weightTag][this.weightType]) {
+                this.lbwPresetSelect.value = lbwValues;
+            } else {
+                this.lbwPresetSelect.selectedIndex = 0;
+            }
+
+            if (!this.usingExecCommand) {
+                const updatedText = this.#getUpdatedText();
+                this.#update(updatedText);
+            }
+        }
+
         const pageLeft = document.createElement('a');
         pageLeft.textContent = "<";
         pageLeft.classList.add("icon");
@@ -375,20 +404,7 @@ class WeightHelper {
             this.historyIndex--;
             pageLabel.textContent = (this.historyIndex + 1) + "/" + WeightHelper.weight_helper_history[this.nameHash].length;
             this.#copyWeight(WeightHelper.weight_helper_history[this.nameHash][this.historyIndex], this.weightData);
-            Object.keys(this.weightData).map(key => {
-                for (const idx in this.weightData[key]) {
-                    const fVal = this.weightData[key][idx];
-                    if (key in this.weightUIs) {
-                        this.weightUIs[key].slider[idx].value = fVal;
-                        this.weightUIs[key].updown[idx].value = fVal / 100;
-                    }
-                }
-            });
-            if (!this.usingExecCommand) {
-                const lbwValues = this.#lbwWeightData().join(",");
-                const updatedText = this.#getUpdatedText(lbwValues);
-                this.#update(updatedText);
-            }
+            restoreFromHistory();
         });
 
         const pageLabel = document.createElement('label');
@@ -406,20 +422,7 @@ class WeightHelper {
             this.historyIndex++;
             pageLabel.textContent = (this.historyIndex + 1) + "/" + WeightHelper.weight_helper_history[this.nameHash].length;
             this.#copyWeight(WeightHelper.weight_helper_history[this.nameHash][this.historyIndex], this.weightData);
-            Object.keys(this.weightData).map(key => {
-                for (const idx in this.weightData[key]) {
-                    const fVal = this.weightData[key][idx];
-                    if (key in this.weightUIs) {
-                        this.weightUIs[key].slider[idx].value = fVal;
-                        this.weightUIs[key].updown[idx].value = fVal / 100;
-                    }
-                }
-            });
-            if (!this.usingExecCommand) {
-                const lbwValues = this.#lbwWeightData().join(",");
-                const updatedText = this.#getUpdatedText(lbwValues);
-                this.#update(updatedText);
-            }
+            restoreFromHistory();
         });
 
         this.customContextMenu.appendChild(header);
@@ -535,11 +538,7 @@ class WeightHelper {
             this.weightTag = e.target.value;
             this.#makeLbwGroupWrapper();
             if (!this.usingExecCommand) {
-                let lbwValues = null;
-                if (!this.weightData.special) {
-                    lbwValues = this.#lbwWeightData().join(",");
-                }
-                const updatedText = this.#getUpdatedText(lbwValues);
+                const updatedText = this.#getUpdatedText();
                 this.#update(updatedText);
             }
         });
@@ -562,11 +561,7 @@ class WeightHelper {
                 this.weightType = e.target.value;
                 this.#makeLbwGroupWrapper();
                 if (!this.usingExecCommand) {
-                    let lbwValues = null;
-                    if (!this.weightData.special) {
-                        lbwValues = this.#lbwWeightData().join(",");
-                    }
-                    const updatedText = this.#getUpdatedText(lbwValues);
+                    const updatedText = this.#getUpdatedText();
                     this.#update(updatedText);
                 }
             });
@@ -626,11 +621,7 @@ class WeightHelper {
             }
 
             if (!this.usingExecCommand) {
-                let lbwValues = null;
-                if (!isSpecial) {
-                    lbwValues = this.#lbwWeightData().join(",");
-                }
-                const updatedText = this.#getUpdatedText(lbwValues);
+                const updatedText = this.#getUpdatedText();
                 this.#update(updatedText);
             }
         });
@@ -718,13 +709,13 @@ class WeightHelper {
         }
     }
 
-    #lbwWeightData() {
-        if (this.weightData.special) {
-            return this.weightData.special;
+    #lbwWeightData(weightData = this.weightData) {
+        if (weightData.special) {
+            return weightData.special;
         }
         const lbwWeightSetting = this.LBW_WEIGHT_SETTINGS[this.weightTag][this.weightType];
         const enableBlocks = lbwWeightSetting.enable_blocks;
-        return this.weightData.lbw.filter((_, i) => enableBlocks[i] === 1).map(v => v / 100);
+        return weightData.lbw.filter((_, i) => enableBlocks[i] === 1).map(v => v / 100);
     }
 
     #copyWeight(srcWeight, destWeight) {
@@ -810,10 +801,7 @@ class WeightHelper {
                 }
             }
             if (!this.usingExecCommand) {
-                if (!lbwValues && !this.weightData.special) {
-                    lbwValues = this.#lbwWeightData().join(",");
-                }
-                const updatedText = this.#getUpdatedText(lbwValues);
+                const updatedText = this.#getUpdatedText();
                 this.#update(updatedText);
             }
         }
@@ -832,15 +820,15 @@ class WeightHelper {
         });
     }
 
-    #getUpdatedText(lbwValues) {
+    #getUpdatedText(weightData = this.weightData, full = false) {
         let updatedText = `<${this.weightTag}:${this.name}`;
         const optionalTypes = ["te", "unet", "dyn"];
         let refIdx = 0;
         for (let idx = 0; idx < optionalTypes.length; idx++) {
             const keyType = optionalTypes[idx];
-            if (keyType in this.weightData) {
+            if (keyType in weightData) {
                 const defVal = this.WEIGHT_SETTINGS[keyType].default;
-                const val = this.weightData[keyType];
+                const val = weightData[keyType];
                 let output = false;
                 if (keyType === "te") {
                     output = true;
@@ -863,9 +851,9 @@ class WeightHelper {
             }
         }
         const startDefVal = this.WEIGHT_SETTINGS.start.default;
-        const startVal = this.weightData.start;
+        const startVal = weightData.start;
         const stopDefVal = this.WEIGHT_SETTINGS.stop.default;
-        const stopVal = this.weightData.stop;
+        const stopVal = weightData.stop;
         if (startVal != startDefVal && stopVal != stopDefVal) {
             updatedText += `:step=${startVal / 100}-${stopVal / 100}`;
         } else if (startVal != startDefVal) {
@@ -875,25 +863,33 @@ class WeightHelper {
         }
 
         let lbwWeights = [];
-        const enableBlocks = this.LBW_WEIGHT_SETTINGS[this.weightTag][this.weightType].enable_blocks;
+        let enableBlocks;
+        if (!full) {
+            enableBlocks = this.LBW_WEIGHT_SETTINGS[this.weightTag][this.weightType].enable_blocks;
+        } else {
+            enableBlocks = new Array(26).fill(1);
+        }
         for (let idx = 0; idx < enableBlocks.length; idx++) {
             if (enableBlocks[idx]) {
-                lbwWeights.push(this.weightData.lbw[idx]);
+                lbwWeights.push(weightData.lbw[idx]);
             }
         }
-        if (!this.weightData.special) {
+        if (!weightData.special) {
             if (!lbwWeights.every(val => val === this.WEIGHT_SETTINGS.lbw.default)) {
                 let rateValues = lbwWeights.map(v => v / 100).join(",");
-                if (lbwValues in this.lbwPresetsValueKeyMap[this.weightTag][this.weightType]) {
-                    rateValues = this.lbwPresetsValueKeyMap[this.weightTag][this.weightType][lbwValues];
+                if (!full) {
+                    const lbwValues = this.#lbwWeightData(weightData).join(",");
+                    if (lbwValues in this.lbwPresetsValueKeyMap[this.weightTag][this.weightType]) {
+                        rateValues = this.lbwPresetsValueKeyMap[this.weightTag][this.weightType][lbwValues];
+                    }
                 }
                 updatedText += `:lbw=${rateValues}`;
             }
         } else {
-            updatedText += `:lbw=${this.weightData.special}`;
+            updatedText += `:lbw=${weightData.special}`;
         }
-        if (this.weightData.lbwe.length > 0) {
-            updatedText += `:lbwe=${this.weightData.lbwe[0]}`;
+        if (weightData.lbwe.length > 0) {
+            updatedText += `:lbwe=${weightData.lbwe[0]}`;
         }
         updatedText += ">";
         return updatedText;
@@ -918,7 +914,23 @@ class WeightHelper {
         }
     }
 
-    #doSave() {
+    #trySave() {
+        if (this.weightData.special) {
+            return;
+        }
+        const regex = /<(?:[^:]+):([^>]+)>/;
+
+        const updatedText = this.#getUpdatedText(undefined, true);
+
+        const historyWeightData = WeightHelper.weight_helper_history[this.nameHash];
+        const lastHistoryWeightData = historyWeightData.at(-1);
+        const lastHistory = this.#getUpdatedText(lastHistoryWeightData, true);
+
+        const historyChanged = lastHistory.match(regex)[1] != updatedText.match(regex)[1];
+        if (!this.cleared && !historyChanged) {
+            return;
+        }
+
         if (!this.weightType) {
             delete weight_helper_type[this.nameHash];
         } else {
@@ -1039,12 +1051,7 @@ class WeightHelper {
                 return;
             }
 
-            let updatedText;
-            if (!this.weightData.special) {
-                updatedText = this.#getUpdatedText(this.#lbwWeightData().join(","));
-            } else {
-                updatedText = this.#getUpdatedText();
-            }
+            const updatedText = this.#getUpdatedText(undefined);
             const changed = this.lastText != updatedText;
             if (changed) {
                 if (!this.usingExecCommand) {
@@ -1053,9 +1060,7 @@ class WeightHelper {
                     this.#updateWithExecCommand(updatedText);
                 }
             }
-            if (!this.weightData.special && (this.cleared || changed)) {
-                this.#doSave();
-            }
+            this.#trySave();
             document.body.removeChild(this.customContextMenu);
             window.removeEventListener("click", this.close);
         }
