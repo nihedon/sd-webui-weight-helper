@@ -38,7 +38,7 @@ class WeightHelper {
             min: 0, max: undefined, default: undefined, step: 100
         },
         lbw: {
-            labels: ["BASE", "IN00", "IN01", "IN02", "IN03", "IN04", "IN05", "IN06", "IN07", "IN08", "IN09", "IN10", "IN11", "MID", "OUT00", "OUT01", "OUT02", "OUT03", "OUT04", "OUT05", "OUT06", "OUT07", "OUT08", "OUT09", "OUT10", "OUT11"],
+            labels: ["BASE", "IN00", "IN01", "IN02", "IN03", "IN04", "IN05", "IN06", "IN07", "IN08", "IN09", "IN10", "IN11", "M00", "OUT00", "OUT01", "OUT02", "OUT03", "OUT04", "OUT05", "OUT06", "OUT07", "OUT08", "OUT09", "OUT10", "OUT11"],
             min: opts.weight_helper_lbw_min * 100,
             max: opts.weight_helper_lbw_max * 100,
             default: 100,
@@ -58,29 +58,29 @@ class WeightHelper {
         lora: {
             "": {
                 enable_blocks: [1,0,1,1,0,1,1,0,1,1,0,0,0,1,0,0,0,1,1,1,1,1,1,1,1,1],
-                block_points: ["BASE", "IN01-IN04", "IN05-IN08", "MID", "OUT03-OUT06", "OUT07-OUT11"]
+                block_points: ["BASE", "IN01-IN04", "IN05-IN08", "M00", "OUT03-OUT06", "OUT07-OUT11"]
             },
             "sdxl": {
                 enable_blocks: [1,0,0,0,0,1,1,0,1,1,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0],
-                block_points: ["BASE", "IN04-IN08", "MID", "OUT00-OUT05"]
+                block_points: ["BASE", "IN04-IN08", "M00", "OUT00-OUT05"]
             },
             "all": {
                 enable_blocks: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-                block_points: ["BASE", "IN00-IN05", "IN06-IN11", "MID", "OUT00-OUT05", "OUT06-OUT11"]
+                block_points: ["BASE", "IN00-IN05", "IN06-IN11", "M00", "OUT00-OUT05", "OUT06-OUT11"]
             }
         },
         lyco: {
             "": {
                 enable_blocks: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-                block_points: ["BASE", "IN00-IN05", "IN06-IN11", "MID", "OUT00-OUT05", "OUT06-OUT11"]
+                block_points: ["BASE", "IN00-IN05", "IN06-IN11", "M00", "OUT00-OUT05", "OUT06-OUT11"]
             },
             "sdxl": {
                 enable_blocks: [1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0],
-                block_points: ["BASE", "IN00-IN03", "IN04-IN08", "MID", "OUT00-OUT03", "OUT04-OUT8"]
+                block_points: ["BASE", "IN00-IN03", "IN04-IN08", "M00", "OUT00-OUT03", "OUT04-OUT8"]
             },
             "all": {
                 enable_blocks: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-                block_points: ["BASE", "IN00-IN05", "IN06-IN11", "MID", "OUT00-OUT05", "OUT06-OUT11"]
+                block_points: ["BASE", "IN00-IN05", "IN06-IN11", "M00", "OUT00-OUT05", "OUT06-OUT11"]
             }
         }
     };
@@ -130,11 +130,12 @@ class WeightHelper {
         this.name = name;
         this.nameHash = this.#hashCode(name);
 
-        const optBlockPattern = /((BASE|MID|(IN|OUT)[0-9]{2}(-(IN|OUT)[0-9]{2})?) *(, *|$))+/;
+        const optBlockPattern = /((BASE|MID|M00|(IN|OUT)[0-9]{2}(-(IN|OUT)[0-9]{2})?) *(, *|$))+/;
         for (let weightTag of this.LBW_WEIGHT_TAGS) {
             for (let weightType of this.LBW_WEIGHT_TYPES) {
                 try {
-                    const optBlockPoints = opts[`weight_helper_lbw_${weightTag.type}_${weightType.type}_block_points`]
+                    let optBlockPoints = opts[`weight_helper_lbw_${weightTag.type}_${weightType.type}_block_points`]
+                    optBlockPoints = optBlockPoints.replace("MID", "M00");
                     if (optBlockPattern.exec(optBlockPoints)) {
                         const blockPoints = optBlockPoints.split(',').map((v) => v.trim());
                         this.LBW_WEIGHT_SETTINGS[weightTag.type][weightType.type].block_points = blockPoints;
