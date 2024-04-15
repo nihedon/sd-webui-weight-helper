@@ -205,26 +205,28 @@ class WeightHelper {
         }
 
         const lbwPreset = gradioApp().getElementById("lbw_ratiospreset").querySelector("textarea");
-        if (lbwPreset && lbwPreset.value) {
-            const lbwPresets = lbwPreset.value.split("\n");
-            for (const weightTag of this.LBW_WEIGHT_TAGS) {
-                this.lbwPresetsMap[weightTag.type] = {};
-                this.lbwPresetsValueKeyMap[weightTag.type] = {};
-                for (const weightType of this.LBW_WEIGHT_TYPES) {
-                    let lbwPreset = {};
-                    let lbwPresetValueKey = {};
+        let lbwPresetValue = lbwPreset.value;
+        if (!lbwPresetValue) {
+            lbwPresetValue = "";
+        }
+        const lbwPresets = lbwPresetValue.split("\n").filter(e => e.trim() !== '');
+        for (const weightTag of this.LBW_WEIGHT_TAGS) {
+            this.lbwPresetsMap[weightTag.type] = {};
+            this.lbwPresetsValueKeyMap[weightTag.type] = {};
+            for (const weightType of this.LBW_WEIGHT_TYPES) {
+                let lbwPreset = {};
+                let lbwPresetValueKey = {};
 
-                    this.lbwPresetsMap[weightTag.type][weightType.type] = lbwPreset;
-                    this.lbwPresetsValueKeyMap[weightTag.type][weightType.type] = lbwPresetValueKey;
+                this.lbwPresetsMap[weightTag.type][weightType.type] = lbwPreset;
+                this.lbwPresetsValueKeyMap[weightTag.type][weightType.type] = lbwPresetValueKey;
 
-                    const enableBlocks = this.LBW_WEIGHT_SETTINGS[weightTag.type][weightType.type].enable_blocks;
-                    const blockLength = enableBlocks.filter((b) => b == 1).length;
-                    for (const line of lbwPresets) {
-                        const kv = line.split(":");
-                        if (kv.length == 2 && kv[1].split(",").length == blockLength) {
-                            lbwPreset[kv[0]] = kv[1];
-                            lbwPresetValueKey[kv[1]] = kv[0];
-                        }
+                const enableBlocks = this.LBW_WEIGHT_SETTINGS[weightTag.type][weightType.type].enable_blocks;
+                const blockLength = enableBlocks.filter((b) => b == 1).length;
+                for (const line of lbwPresets) {
+                    const kv = line.split(":");
+                    if (kv.length == 2 && kv[1].split(",").length == blockLength) {
+                        lbwPreset[kv[0]] = kv[1];
+                        lbwPresetValueKey[kv[1]] = kv[0];
                     }
                 }
             }
@@ -835,9 +837,31 @@ class WeightHelper {
     }
 
     #updateWithExecCommand(updatedText) {
+        let tacActiveInOrg = undefined;
+        if (typeof TAC_CFG !== 'undefined' && TAC_CFG) {
+            tacActiveInOrg = TAC_CFG.activeIn.global
+            TAC_CFG.activeIn.global = false;
+        }
         this.textarea.focus();
         this.textarea.setSelectionRange(this.lastSelectionStart, this.lastSelectionEnd);
         document.execCommand("insertText", false, updatedText);
+        if (typeof TAC_CFG !== 'undefined' && TAC_CFG) {
+            TAC_CFG.activeIn.global = tacActiveInOrg;
+        }
+    }
+
+    #doSave() {
+        if (!this.weightType) {
+            delete weight_helper_type[this.nameHash];
+        } else {
+            weight_helper_type[this.nameHash] = this.weightType;
+        }
+        localStorage.setItem("weight_helper_type", JSON.stringify(weight_helper_type));
+
+        this.weightData.VERSION = VERSION;
+        this.weightData.DATE = this.currentDate;
+        WeightHelper.weight_helper_history[this.nameHash].push(this.weightData);
+        localStorage.setItem("weight_helper", JSON.stringify(WeightHelper.weight_helper_history));
     }
 
     async #makePreview() {
@@ -934,15 +958,10 @@ class WeightHelper {
     }
 
     close = (e) => {
-        if (!this.customContextMenu) {
-            return;
-        }
-        if (e && e.target.id === `${this.tabId}_token_button`) {
-            return;
-        }
-        if (e && this.customContextMenu.contains(e.target)) {
-            return;
-        }
+        if (!this.customContextMenu) return;
+        if (e && e.target.id === `${this.tabId}_token_button`) return;
+        if (e && this.customContextMenu.contains(e.target)) return;
+
         if (this.customContextMenu.parentNode === document.body &&
                 (!e || e.target.id != "weight-helper-show-extra-opt-button")) {
             WeightHelper.last_instance = undefined;
@@ -952,41 +971,17 @@ class WeightHelper {
                 return;
             }
 
-            if (!this.weightType) {
-                delete weight_helper_type[this.nameHash];
-            } else {
-                weight_helper_type[this.nameHash] = this.weightType;
-            }
-            localStorage.setItem("weight_helper_type", JSON.stringify(weight_helper_type));
-
             const updatedText = this.#getUpdatedText(this.#lbwWeightData().join(","));
-            if (!this.usingExecCommand) {
-                this.textarea.dispatchEvent(new InputEvent('input', {
-                    bubbles: true,
-                    cancelable: true
-                }));
-                if (this.cleared || this.lastText != updatedText) {
-                    this.weightData.VERSION = VERSION;
-                    this.weightData.DATE = this.currentDate;
-                    WeightHelper.weight_helper_history[this.nameHash].push(this.weightData);
-                    localStorage.setItem("weight_helper", JSON.stringify(WeightHelper.weight_helper_history));
-                }
-            } else {
-                if (this.cleared || this.lastText != updatedText) {
-                    let tacActiveInOrg = undefined;
-                    if (typeof TAC_CFG !== 'undefined' && TAC_CFG) {
-                        tacActiveInOrg = TAC_CFG.activeIn.global
-                        TAC_CFG.activeIn.global = false;
-                    }
+            const changed = this.lastText != updatedText;
+            if (changed) {
+                if (!this.usingExecCommand) {
+                    this.textarea.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true }));
+                } else {
                     this.#updateWithExecCommand(updatedText);
-                    if (typeof TAC_CFG !== 'undefined' && TAC_CFG) {
-                        TAC_CFG.activeIn.global = tacActiveInOrg;
-                    }
-                    this.weightData.VERSION = VERSION;
-                    this.weightData.DATE = this.currentDate;
-                    WeightHelper.weight_helper_history[this.nameHash].push(this.weightData);
-                    localStorage.setItem("weight_helper", JSON.stringify(WeightHelper.weight_helper_history));
                 }
+            }
+            if (this.cleared || changed) {
+                this.#doSave();
             }
             document.body.removeChild(this.customContextMenu);
             window.removeEventListener("click", this.close);
