@@ -85,9 +85,6 @@ class WeightHelper {
 
     usingExecCommand = false;
 
-    currentDate = null;
-    historyLimitDate = null;
-
     offsetX = 0;
     offsetY = 0;
     isDragging = false;
@@ -99,6 +96,7 @@ class WeightHelper {
     weightType = "";
     name = null;
     nameHash = null;
+    currentHistory = null;
     weightData = {};
 
     lastSelectionStart = null;
@@ -122,9 +120,6 @@ class WeightHelper {
         this.lastSelectionStart = selectionStart;
         this.lastSelectionEnd = selectionEnd;
         this.lastText = this.textarea.value.substring(this.lastSelectionStart, this.lastSelectionEnd);
-
-        this.currentDate = this.#getCurrentDate();
-        this.historyLimitDate = this.#getDateBeforeDays(this.currentDate, 20);
 
         this.weightTag = type;
         this.name = name;
@@ -177,26 +172,10 @@ class WeightHelper {
         return hash;
     }
 
-    #getCurrentDate() {
-        var date = new Date();
-        var year = date.getFullYear();
-        var month = ("0" + (date.getMonth() + 1)).slice(-2);
-        var day = ("0" + date.getDate()).slice(-2);
-        return year + month + day;
-    }
-
-    #getDateBeforeDays(currentDate, days) {
-        let date = new Date(currentDate.substring(0, 4), currentDate.substring(4, 6) - 1, currentDate.substring(6, 8));
-        date.setDate(date.getDate() - days);
-        let year = date.getFullYear();
-        let month = ("0" + (date.getMonth() + 1)).slice(-2);
-        let day = ("0" + date.getDate()).slice(-2);
-        return year + month + day;
-    }
-
     #areWeightDataEqual(orgWeight1, orgWeight2) {
         const clean = (weight) => {
             delete weight.VERSION;
+            delete weight.DATE;
             delete weight.is_bookmarked;
             if (!weight.use_unet) {
                 weight.unet = undefined;
@@ -283,6 +262,7 @@ class WeightHelper {
         }
 
         this.weightData.VERSION = VERSION;
+
         for (const weightType of Object.keys(this.WEIGHT_SETTINGS)) {
             this.weightData[weightType] = []
             this.weightData[weightType].push(this.WEIGHT_SETTINGS[weightType].default);
@@ -372,24 +352,25 @@ class WeightHelper {
         if (!(this.nameHash in weight_helper_history)) {
             weight_helper_history[this.nameHash] = [];
         }
-        weight_helper_history[this.nameHash] = weight_helper_history[this.nameHash].filter(v => v.VERSION >= VERSION);
-        if (weight_helper_history[this.nameHash].length == 0) {
-            weight_helper_history[this.nameHash].push(structuredClone(this.weightData));
+        weight_helper_history[this.nameHash] = weight_helper_history[this.nameHash].filter(v => v.VERSION == VERSION);
+        this.currentHistory = weight_helper_history[this.nameHash];
+        if (this.currentHistory.length == 0) {
+            this.currentHistory.push(structuredClone(this.weightData));
         } else {
-            const lastWeightData = weight_helper_history[this.nameHash].at(-1);
+            const lastWeightData = this.currentHistory.at(-1);
             if (this.#areWeightDataEqual(lastWeightData, this.weightData)) {
                 if (lastWeightData.is_bookmarked) {
-                    weight_helper_history[this.nameHash].push(structuredClone(this.weightData));
+                    this.currentHistory.push(structuredClone(this.weightData));
                     this.addedTempWeightData = true;
                 }
             } else {
-                weight_helper_history[this.nameHash].push(structuredClone(this.weightData));
+                this.currentHistory.push(structuredClone(this.weightData));
                 if (this.weightData.special) {
                     this.addedTempWeightData = true;
                 }
             }
         }
-        this.historyIndex = weight_helper_history[this.nameHash].length - 1;
+        this.historyIndex = this.currentHistory.length - 1;
     }
 
     #initContextMenuHeader() {
@@ -412,7 +393,7 @@ class WeightHelper {
         bookmark.classList.add("bookmark", this.weightData.is_bookmarked ? "like" : "unlike");
         headerTitle.prepend(bookmark);
         bookmark.addEventListener("click", (e) => {
-            const weightData = weight_helper_history[this.nameHash][this.historyIndex];
+            const weightData = this.currentHistory[this.historyIndex];
             const clsList = e.target.classList;
             const lk = clsList.item(1);
             clsList.remove(lk);
@@ -439,11 +420,11 @@ class WeightHelper {
         history.appendChild(pageWrapper);
 
         const pageLabel = document.createElement('label');
-        pageLabel.textContent = (this.historyIndex + 1) + "/" + weight_helper_history[this.nameHash].length;
+        pageLabel.textContent = (this.historyIndex + 1) + "/" + this.currentHistory.length;
 
         const restoreFromHistory = () => {
-            pageLabel.textContent = (this.historyIndex + 1) + "/" + weight_helper_history[this.nameHash].length;
-            this.weightData = structuredClone(weight_helper_history[this.nameHash][this.historyIndex]);
+            pageLabel.textContent = (this.historyIndex + 1) + "/" + this.currentHistory.length;
+            this.weightData = structuredClone(this.currentHistory[this.historyIndex]);
 
             Object.keys(this.weightData).map(key => {
                 if (["VERSION", "DATE"].includes(key)) {
@@ -531,7 +512,7 @@ class WeightHelper {
         pageRight.classList.add("icon");
         pageWrapper.appendChild(pageRight);
         pageRight.addEventListener("click", () => {
-            if (this.historyIndex >= weight_helper_history[this.nameHash].length - 1) {
+            if (this.historyIndex >= this.currentHistory.length - 1) {
                 return;
             }
             this.historyIndex++;
@@ -1033,31 +1014,32 @@ class WeightHelper {
         }
 
         if (this.addedTempWeightData) {
-            weight_helper_history[this.nameHash].pop();
+            this.currentHistory.pop();
         }
-        const historyLen = weight_helper_history[this.nameHash].length;
-        let lastWeightData = weight_helper_history[this.nameHash].at(-1);
+        const historyLen = this.currentHistory.length;
+        let lastWeightData = this.currentHistory.at(-1);
         let historyChanged = false;
         if (this.historyIndex < historyLen - 1) {
-            if (!weight_helper_history[this.nameHash][this.historyIndex].special) {
-                const swap = weight_helper_history[this.nameHash][this.historyIndex];
+            if (!this.currentHistory[this.historyIndex].special) {
+                const swap = this.currentHistory[this.historyIndex];
                 this.weightData.is_bookmarked = swap.is_bookmarked;
                 if (swap.is_bookmarked) {
-                    weight_helper_history[this.nameHash][this.historyIndex] = this.weightData;
+                    this.currentHistory[this.historyIndex] = this.weightData;
                 } else {
-                    weight_helper_history[this.nameHash].splice(this.historyIndex, 1)[0];
+                    this.currentHistory.splice(this.historyIndex, 1)[0];
                     historyChanged = true;
                 }
             }
+            this.weightData.DATE = new Date().getTime();
         } else {
             historyChanged = !this.#areWeightDataEqual(lastWeightData, this.weightData);
+            lastWeightData.DATE = new Date().getTime();
         }
         if (this.weightData.stop && this.weightData.stop[0] == this.WEIGHT_SETTINGS.stop.default) {
             this.weightData.stop = null;
         }
         if (historyChanged) {
-            this.weightData.VERSION = VERSION;
-            weight_helper_history[this.nameHash].push(this.weightData);
+            this.currentHistory.push(this.weightData);
         }
 
         const historyClone = structuredClone(weight_helper_history);
