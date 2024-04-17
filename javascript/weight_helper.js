@@ -1011,9 +1011,14 @@ class WeightHelper {
         let historyChanged = false;
         if (this.historyIndex < historyLen - 1) {
             if (!weight_helper_history[this.nameHash][this.historyIndex].special) {
-                const swap = weight_helper_history[this.nameHash].splice(this.historyIndex, 1)[0];
+                const swap = weight_helper_history[this.nameHash][this.historyIndex];
                 this.weightData.is_bookmarked = swap.is_bookmarked;
-                historyChanged = true;
+                if (swap.is_bookmarked) {
+                    weight_helper_history[this.nameHash][this.historyIndex] = this.weightData;
+                } else {
+                    weight_helper_history[this.nameHash].splice(this.historyIndex, 1)[0];
+                    historyChanged = true;
+                }
             }
         } else {
             historyChanged = !this.#areWeightDataEqual(lastWeightData, this.weightData);
