@@ -113,6 +113,7 @@ class WeightHelper {
     lbwGroupWrapper = null;
     weightUIs = {};
 
+    opened = false;
     addedTempWeightData = false;
 
     constructor(tabId, textarea, selectionStart, selectionEnd, type, name, allWeights) {
@@ -194,7 +195,7 @@ class WeightHelper {
     }
 
     #areWeightDataEqual(orgWeight1, orgWeight2) {
-        function clean(weight) {
+        const clean = (weight) => {
             delete weight.VERSION;
             delete weight.is_bookmarked;
             if (!weight.use_unet) {
@@ -202,6 +203,9 @@ class WeightHelper {
             }
             if (!weight.use_dyn) {
                 weight.dyn = undefined;
+            }
+            if (weight.stop == this.WEIGHT_SETTINGS.stop.default) {
+                weight.stop = undefined;
             }
             return weight;
         }
@@ -442,11 +446,35 @@ class WeightHelper {
             this.weightData = structuredClone(weight_helper_history[this.nameHash][this.historyIndex]);
 
             Object.keys(this.weightData).map(key => {
+                if (["VERSION", "DATE"].includes(key)) {
+                    return;
+                }
+                if (["stop"].includes(key)) {
+                    if (!this.weightData[key]) {
+                        this.weightData[key] = [this.WEIGHT_SETTINGS[key].default];
+                    }
+                }
                 for (const idx in this.weightData[key]) {
                     let fVal = this.weightData[key][idx];
                     if (key in this.weightUIs) {
-                        if ("use_check" in this.weightUIs[key]) {
-                            this.weightUIs[key].use_check.checked = this.weightData[`use_${key}`];
+                        let isExtraType = false;
+                        let show = false;
+                        if (["unet", "dyn"].includes(key)) {
+                            isExtraType = true;
+                            const useCheck = this.weightData[`use_${key}`];
+                            this.weightUIs[key].use_check.checked = useCheck;
+                            show = useCheck;
+                        }
+                        if (["start", "stop"].includes(key)) {
+                            isExtraType = true;
+                            let val = this.weightData[key];
+                            if (val) {
+                                show = val[0] != this.WEIGHT_SETTINGS[key].default;
+                            }
+                        }
+                        if (!this.opened && isExtraType) {
+                            const parent = this.weightUIs[key].slider[0].closest("section");
+                            parent.style.display = show ? "flex" : "none";
                         }
                         if (fVal == null) {
                             fVal = 0;
@@ -458,15 +486,16 @@ class WeightHelper {
             });
 
             if (this.weightData.special) {
-                this.weightData.special = "";
-                this.lbwGroupWrapper.style.display = "flex";
-            }
-
-            const lbwValues = this.#lbwWeightData().join(",");
-            if (lbwValues in this.lbwPresetsValueKeyMap[this.weightTag][this.weightType]) {
-                this.lbwPresetSelect.value = lbwValues;
+                this.lbwPresetSelect.value = this.weightData.special;
+                this.lbwGroupWrapper.style.display = "none";
             } else {
-                this.lbwPresetSelect.selectedIndex = 0;
+                const lbwValues = this.#lbwWeightData().join(",");
+                if (lbwValues in this.lbwPresetsValueKeyMap[this.weightTag][this.weightType]) {
+                    this.lbwPresetSelect.value = lbwValues;
+                } else {
+                    this.lbwPresetSelect.selectedIndex = 0;
+                }
+                this.lbwGroupWrapper.style.display = "flex";
             }
 
             if (!this.usingExecCommand) {
@@ -585,6 +614,7 @@ class WeightHelper {
                 for (const extra of extraOpts) {
                     extra.style.display = '';
                 }
+                this.opened = true;
             });
             this.customContextMenu.appendChild(extraButton);
         }
@@ -993,7 +1023,6 @@ class WeightHelper {
         }
         localStorage.setItem("weight_helper_type", JSON.stringify(weight_helper_type));
 
-        
         const lbwDefault = this.WEIGHT_SETTINGS.lbw.default;
         const lbwWeightSetting = this.LBW_WEIGHT_SETTINGS[this.weightTag][this.weightType];
         const enableBlocks = lbwWeightSetting.enable_blocks;
@@ -1022,6 +1051,9 @@ class WeightHelper {
             }
         } else {
             historyChanged = !this.#areWeightDataEqual(lastWeightData, this.weightData);
+        }
+        if (this.weightData.stop && this.weightData.stop[0] == this.WEIGHT_SETTINGS.stop.default) {
+            this.weightData.stop = null;
         }
         if (historyChanged) {
             this.weightData.VERSION = VERSION;
