@@ -20,12 +20,29 @@
     padding: 0px 3px;
     cursor: move;
 }
-#weight-helper > header > label {
+#weight-helper > header > span {
+    display: flex;
+    align-items: center;
+}
+#weight-helper > header .name {
     max-width: 190px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     pointer-events: none;
+}
+#weight-helper > header .bookmark::before {
+    content: "★";
+    cursor: pointer;
+    font-size: calc(110%);
+}
+#weight-helper > header .bookmark.unlike::before {
+    -webkit-text-stroke: 0.7px var(--checkbox-border-color-focus);
+    color: var(--checkbox-background-color);
+}
+#weight-helper > header .bookmark.like::before {
+    text-shadow: 0px 0px 2px var(--checkbox-border-color-selected);
+    color: var(--checkbox-border-color-selected);
 }
 #weight-helper > header .page {
     display: flex;
@@ -40,7 +57,7 @@
     background-color: var(--block-info-text-color);
     color: var(--border-color-primary);
     border-radius: 10px;
-    width: 15px;
+    width: 20px;
     text-align: center;
     font-size: var(--text-xs);
 }
@@ -63,6 +80,11 @@
     justify-content: space-between;
     align-items: center;
     gap: 6px;
+}
+#weight-helper section > span {
+    width: 108px;
+    display: flex;
+    justify-content: space-between;
 }
 #weight-helper button {
     cursor: pointer;
