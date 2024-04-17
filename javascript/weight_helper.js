@@ -83,6 +83,8 @@ class WeightHelper {
         }
     };
 
+    usingExecCommand = false;
+
     currentDate = null;
     historyLimitDate = null;
 
@@ -111,7 +113,7 @@ class WeightHelper {
     lbwGroupWrapper = null;
     weightUIs = {};
 
-    usingExecCommand = false;
+    addedTempWeightData = false;
 
     constructor(tabId, textarea, selectionStart, selectionEnd, type, name, allWeights) {
         this.tabId = tabId;
@@ -343,8 +345,8 @@ class WeightHelper {
                 this.weightData[keyType][0] = parseInt(blocks * 100);
             }
         }
-        this.weightData.use_unet = this.weightData.unet == null;
-        this.weightData.use_dyn = this.weightData.dyn == null;
+        this.weightData.use_unet = this.weightData.unet[0] != null;
+        this.weightData.use_dyn = this.weightData.dyn[0] != null;
 
         if (!isTypeDetermined) {
             if (this.nameHash in weight_helper_type) {
@@ -358,6 +360,8 @@ class WeightHelper {
             }
         }
 
+        this.weightData.is_bookmarked = false;
+
         if (!weight_helper_history) {
             weight_helper_history = {};
         }
@@ -369,11 +373,16 @@ class WeightHelper {
             weight_helper_history[this.nameHash].push(structuredClone(this.weightData));
         } else {
             const lastWeightData = weight_helper_history[this.nameHash].at(-1);
-            this.weightData.is_bookmarked = false;
             if (this.#areWeightDataEqual(lastWeightData, this.weightData)) {
-                this.weightData.is_bookmarked = lastWeightData.is_bookmarked;
-            } else if (!this.weightData.special) {
+                if (lastWeightData.is_bookmarked) {
+                    weight_helper_history[this.nameHash].push(structuredClone(this.weightData));
+                    this.addedTempWeightData = true;
+                }
+            } else {
                 weight_helper_history[this.nameHash].push(structuredClone(this.weightData));
+                if (this.weightData.special) {
+                    this.addedTempWeightData = true;
+                }
             }
         }
         this.historyIndex = weight_helper_history[this.nameHash].length - 1;
@@ -399,10 +408,10 @@ class WeightHelper {
         bookmark.classList.add("bookmark", this.weightData.is_bookmarked ? "like" : "unlike");
         headerTitle.prepend(bookmark);
         bookmark.addEventListener("click", (e) => {
+            const weightData = weight_helper_history[this.nameHash][this.historyIndex];
             const clsList = e.target.classList;
             const lk = clsList.item(1);
             clsList.remove(lk);
-            const weightData = weight_helper_history[this.nameHash][this.historyIndex]
             if (lk === "like") {
                 weightData.is_bookmarked = false;
                 clsList.add("unlike");
@@ -434,8 +443,14 @@ class WeightHelper {
 
             Object.keys(this.weightData).map(key => {
                 for (const idx in this.weightData[key]) {
-                    const fVal = this.weightData[key][idx];
+                    let fVal = this.weightData[key][idx];
                     if (key in this.weightUIs) {
+                        if ("use_check" in this.weightUIs[key]) {
+                            this.weightUIs[key].use_check.checked = this.weightData[`use_${key}`];
+                        }
+                        if (fVal == null) {
+                            fVal = 0;
+                        }
                         this.weightUIs[key].slider[idx].value = fVal;
                         this.weightUIs[key].updown[idx].value = fVal / 100;
                     }
@@ -551,7 +566,7 @@ class WeightHelper {
                 extraOpts.push(section);
                 const defVal = this.WEIGHT_SETTINGS[group].default;
                 const weightUI = this.weightUIs[group];
-                if ("active_checkbox" in weightUI && !weightUI.active_checkbox.checked ||
+                if ("use_check" in weightUI && !weightUI.use_check.checked ||
                         defVal !== undefined && this.weightData[group][0] === defVal) {
                     section.style.display = 'none';
                     hiddenExtraOpts++;
@@ -818,21 +833,22 @@ class WeightHelper {
 
         if (labelContainer && this.WEIGHT_SETTINGS[group].default === undefined) {
             const unetVal = this.weightData[group][i];
-            const useForceCheck = document.createElement('input');
-            useForceCheck.addEventListener("change", () => {
+            const useCheck = document.createElement('input');
+            useCheck.addEventListener("change", (e) => {
+                this.weightData[`use_${group}`] = e.target.checked;
                 if (!this.usingExecCommand) {
                     const updatedText = this.#getUpdatedText();
                     this.#update(updatedText);
                 }
             });
-            useForceCheck.type = "checkbox";
+            useCheck.type = "checkbox";
             if (unetVal != null) {
-                useForceCheck.checked = true;
+                useCheck.checked = true;
             } else {
                 this.weightData[group][i] = 0;
             }
-            this.weightUIs[group].active_checkbox = useForceCheck;
-            labelContainer.appendChild(useForceCheck);
+            this.weightUIs[group].use_check = useCheck;
+            labelContainer.appendChild(useCheck);
         }
 
         const slider = this.#makeSlider(group, i);
@@ -854,10 +870,11 @@ class WeightHelper {
                     lbwPresetSelect.selectedIndex = 0;
                 }
             }
-            if ("active_checkbox" in this.weightUIs[group]) {
-                const activeCheck = this.weightUIs[group].active_checkbox;
-                if (!activeCheck.checked) {
-                    activeCheck.checked = true;
+            if ("use_check" in this.weightUIs[group]) {
+                const useCheck = this.weightUIs[group].use_check;
+                if (!useCheck.checked) {
+                    useCheck.checked = true;
+                    this.weightData[`use_${group}`] = true;
                 }
             }
             if (!this.usingExecCommand) {
@@ -893,8 +910,8 @@ class WeightHelper {
                 let output = false;
                 if (keyType === "te") {
                     output = true;
-                } else if ("active_checkbox" in this.weightUIs[keyType]) {
-                    if (this.weightUIs[keyType].active_checkbox.checked) {
+                } else if ("use_check" in this.weightUIs[keyType]) {
+                    if (this.weightUIs[keyType].use_check.checked) {
                         output = true;
                     }
                 } else if (val != defVal) {
@@ -976,10 +993,7 @@ class WeightHelper {
         }
         localStorage.setItem("weight_helper_type", JSON.stringify(weight_helper_type));
 
-        if (this.weightData.special) {
-            return;
-        }
-
+        
         const lbwDefault = this.WEIGHT_SETTINGS.lbw.default;
         const lbwWeightSetting = this.LBW_WEIGHT_SETTINGS[this.weightTag][this.weightType];
         const enableBlocks = lbwWeightSetting.enable_blocks;
@@ -988,17 +1002,21 @@ class WeightHelper {
                 this.weightData.lbw[idx] = lbwDefault;
             }
         }
-        const historyLen = weight_helper_history[this.nameHash];
-        let historyChanged;
-        const lastWeightData = weight_helper_history[this.nameHash].at(-1);
-        if (historyLen - 1 === this.historyIndex) {
-            historyChanged = !this.#areWeightDataEqual(lastWeightData, this.weightData);
-        } else {
-            const refHistoryWeightData = weight_helper_history[this.nameHash][this.historyIndex];
-            historyChanged = !this.#areWeightDataEqual(refHistoryWeightData, this.weightData);
-            if (historyChanged) {
-                historyChanged = !this.#areWeightDataEqual(lastWeightData, this.weightData);
+
+        if (this.addedTempWeightData) {
+            weight_helper_history[this.nameHash].pop();
+        }
+        const historyLen = weight_helper_history[this.nameHash].length;
+        let lastWeightData = weight_helper_history[this.nameHash].at(-1);
+        let historyChanged = false;
+        if (this.historyIndex < historyLen - 1) {
+            if (!weight_helper_history[this.nameHash][this.historyIndex].special) {
+                const swap = weight_helper_history[this.nameHash].splice(this.historyIndex, 1)[0];
+                this.weightData.is_bookmarked = swap.is_bookmarked;
+                historyChanged = true;
             }
+        } else {
+            historyChanged = !this.#areWeightDataEqual(lastWeightData, this.weightData);
         }
         if (historyChanged) {
             this.weightData.VERSION = VERSION;
@@ -1007,7 +1025,7 @@ class WeightHelper {
 
         const historyClone = structuredClone(weight_helper_history);
         historyClone[this.nameHash] = historyClone[this.nameHash].filter(weightData => {
-            return weightData.is_bookmarked;
+            return weightData.is_bookmarked && !weightData.special;
         });
         localStorage.setItem("weight_helper", JSON.stringify(historyClone));
     }
