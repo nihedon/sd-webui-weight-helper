@@ -538,14 +538,12 @@ class WeightHelper {
             const section = document.createElement('section');
             section.classList.add("border");
 
+            const labelContainer = document.createElement("span");
             const label = document.createElement('label');
             label.textContent = weightSetting.label;
-            section.appendChild(label);
-
-            const sliderContainer = document.createElement('div');
-            sliderContainer.classList.add('f', 'f-c', 'g-4');
-            this.#makeSliderComponent(sliderContainer, null, group, 0);
-            section.appendChild(sliderContainer);
+            labelContainer.appendChild(label);
+            section.appendChild(labelContainer);
+            section.appendChild(this.#makeSliderComponent(labelContainer, null, group, 0));
 
             if (weightSetting.label === "TEnc") {
                 this.customContextMenu.appendChild(section);
@@ -703,11 +701,7 @@ class WeightHelper {
             const label = document.createElement('label');
             label.textContent = this.WEIGHT_SETTINGS[group].labels[idx];
             lbwUnit.appendChild(label);
-
-            const sliderContainer = document.createElement('div');
-            sliderContainer.classList.add('f', 'f-c', 'g-4');
-            this.#makeSliderComponent(sliderContainer, this.lbwPresetSelect, group, idx);
-            lbwUnit.appendChild(sliderContainer);
+            lbwUnit.appendChild(this.#makeSliderComponent(null, this.lbwPresetSelect, group, idx));
 
             this.weightUIs.lbw.dom.push(lbwUnit);
         }
@@ -818,8 +812,11 @@ class WeightHelper {
         return valueText;
     }
 
-    #makeSliderComponent(sliderContainer, lbwPresetSelect, group, i) {
-        if (this.WEIGHT_SETTINGS[group].default === undefined) {
+    #makeSliderComponent(labelContainer, lbwPresetSelect, group, i) {
+        const sliderContainer = document.createElement('div');
+        sliderContainer.classList.add('f', 'f-c', 'g-4');
+
+        if (labelContainer && this.WEIGHT_SETTINGS[group].default === undefined) {
             const unetVal = this.weightData[group][i];
             const useForceCheck = document.createElement('input');
             useForceCheck.addEventListener("change", () => {
@@ -835,7 +832,7 @@ class WeightHelper {
                 this.weightData[group][i] = 0;
             }
             this.weightUIs[group].active_checkbox = useForceCheck;
-            sliderContainer.appendChild(useForceCheck);
+            labelContainer.appendChild(useForceCheck);
         }
 
         const slider = this.#makeSlider(group, i);
@@ -881,6 +878,7 @@ class WeightHelper {
             slider.value = Math.round(fVal * 100);
             changedLbwValues();
         });
+        return sliderContainer;
     }
 
     #getUpdatedText() {
