@@ -5,7 +5,7 @@ import importlib
 import json
 import urllib.parse
 from fastapi import FastAPI
-from modules import script_callbacks, shared, util
+from modules import extra_networks, script_callbacks, shared, util
 
 prefix = "/whapi/v1"
 
@@ -40,6 +40,15 @@ class WeightHelperAPI:
             return None
 
         path, _ = os.path.splitext(lora.filename)
+
+        metadata = extra_networks.get_user_metadata(lora.filename, lister=self.lister)
+
+        sd_version = metadata.get("sd version")
+        if not sd_version:
+            sd_version = lora.sd_version
+        else:
+            pass
+
         preview = self._find_preview(path)
         description = self._find_description(path)
         modelId = self._find_civitai_model_id(path)

@@ -183,8 +183,8 @@ class WeightHelper {
             if (!weight.use_dyn) {
                 weight.dyn = undefined;
             }
-            if (weight.stop == this.WEIGHT_SETTINGS.stop.default) {
-                weight.stop = undefined;
+            if (weight.stop[0] == this.WEIGHT_SETTINGS.stop.default) {
+                weight.stop[0] = undefined;
             }
             return weight;
         }
@@ -218,6 +218,22 @@ class WeightHelper {
                 return weight1[key][0] === weight2[key][0];
             }
         });
+    }
+
+    #isDefault(weightData) {
+        for (const weightType of Object.keys(this.WEIGHT_SETTINGS)) {
+            for (const val of weightData[weightType]) {
+                const def = this.WEIGHT_SETTINGS[weightType].default;
+                if (def === undefined) {
+                    if ((val != null && val !== 0) || weightData[`use_${weightType}`]) {
+                        return false;
+                    }
+                } else if (val !== def) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     #init(allWeights) {
@@ -363,11 +379,6 @@ class WeightHelper {
                     this.currentHistory.push(structuredClone(this.weightData));
                     this.addedTempWeightData = true;
                 }
-            } else {
-                this.currentHistory.push(structuredClone(this.weightData));
-                if (this.weightData.special) {
-                    this.addedTempWeightData = true;
-                }
             }
         }
         this.historyIndex = this.currentHistory.length - 1;
@@ -399,9 +410,11 @@ class WeightHelper {
             clsList.remove(lk);
             if (lk === "like") {
                 weightData.is_bookmarked = false;
+                this.weightData.is_bookmarked = false;
                 clsList.add("unlike");
             } else {
                 weightData.is_bookmarked = true;
+                this.weightData.is_bookmarked = true;
                 clsList.add("like");
             }
         });
@@ -431,8 +444,8 @@ class WeightHelper {
                     return;
                 }
                 if (["stop"].includes(key)) {
-                    if (!this.weightData[key]) {
-                        this.weightData[key] = [this.WEIGHT_SETTINGS[key].default];
+                    if (this.weightData[key][0] == null) {
+                        this.weightData[key][0] = this.WEIGHT_SETTINGS[key].default;
                     }
                 }
                 for (const idx in this.weightData[key]) {
@@ -449,8 +462,8 @@ class WeightHelper {
                         if (["start", "stop"].includes(key)) {
                             isExtraType = true;
                             let val = this.weightData[key];
-                            if (val) {
-                                show = val[0] != this.WEIGHT_SETTINGS[key].default;
+                            if (val[0] != null && val[0] != this.WEIGHT_SETTINGS[key].default) {
+                                show = true;
                             }
                         }
                         if (!this.opened && isExtraType) {
@@ -1013,38 +1026,40 @@ class WeightHelper {
             }
         }
 
-        if (this.addedTempWeightData) {
-            this.currentHistory.pop();
-        }
         const historyLen = this.currentHistory.length;
         let lastWeightData = this.currentHistory.at(-1);
         let historyChanged = false;
-        if (this.historyIndex < historyLen - 1) {
-            if (!this.currentHistory[this.historyIndex].special) {
-                const swap = this.currentHistory[this.historyIndex];
-                this.weightData.is_bookmarked = swap.is_bookmarked;
-                if (swap.is_bookmarked) {
-                    this.currentHistory[this.historyIndex] = this.weightData;
-                } else {
-                    this.currentHistory.splice(this.historyIndex, 1)[0];
-                    historyChanged = true;
-                }
-            }
-            this.weightData.DATE = new Date().getTime();
-        } else {
+        if (this.historyIndex == historyLen - 1) {
             historyChanged = !this.#areWeightDataEqual(lastWeightData, this.weightData);
             lastWeightData.DATE = new Date().getTime();
+            if (historyChanged) {
+                if (historyLen == 1 && this.#isDefault(lastWeightData)) {
+                    this.currentHistory.pop();
+                } else if (this.weightData.is_bookmarked) {
+                    this.currentHistory.pop();
+                }
+                this.currentHistory.push(this.weightData);
+            }
+        } else {
+            const swap = this.currentHistory[this.historyIndex];
+            if (swap.is_bookmarked) {
+                this.currentHistory[this.historyIndex] = this.weightData;
+            } else {
+                this.currentHistory.splice(this.historyIndex, 1)[0];
+                historyChanged = true;
+            }
+            this.weightData.DATE = new Date().getTime();
+            if (historyChanged) {
+                this.currentHistory.push(this.weightData);
+            }
         }
-        if (this.weightData.stop && this.weightData.stop[0] == this.WEIGHT_SETTINGS.stop.default) {
-            this.weightData.stop = null;
-        }
-        if (historyChanged) {
-            this.currentHistory.push(this.weightData);
+        if (this.weightData.stop[0] == this.WEIGHT_SETTINGS.stop.default) {
+            this.weightData.stop[0] = undefined;
         }
 
         const historyClone = structuredClone(weight_helper_history);
         historyClone[this.nameHash] = historyClone[this.nameHash].filter(weightData => {
-            return weightData.is_bookmarked && !weightData.special;
+            return weightData.is_bookmarked;
         });
         localStorage.setItem("weight_helper", JSON.stringify(historyClone));
     }
