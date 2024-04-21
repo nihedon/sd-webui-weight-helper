@@ -169,38 +169,102 @@
 #weight-helper label.radio-label {
     padding-left: 0px;
 }
-#weight-helper .extra-network-pane {
-    all: initial;
+#weight-helper .preview-pane {
     position: absolute;
     overflow: hidden;
     border-radius: 6px;
     box-shadow: 0px 0px 7px 0 var(--weight-helper-shadow);
 }
-#weight-helper .extra-network-pane .card {
-    all: initial;
+#weight-helper .preview-pane:hover .action-row {
+    visibility: visible;
 }
-#weight-helper .extra-network-pane .card .card-button {
+#weight-helper .preview-pane .action-row {
+    visibility: hidden;
+    display: flex;
+    width: 100%;
+    position: absolute;
+    height: 30px;
+    backdrop-filter: blur(4px) grayscale(0.5);
+    background-color: rgb(0 0 0 / 25%);
+}
+#weight-helper .preview-pane .button-top {
+    top: 0;
+}
+#weight-helper .preview-pane .button-bottom {
+    bottom: 0;
+    justify-content: center;
+}
+#weight-helper .preview-pane .card-btn {
+    font-size: 1.5rem;
     cursor: pointer;
+    width: 40px;
+    padding: 0;
+    margin: 0;
 }
-#weight-helper .extra-network-pane .card .civitai-button::before,
-#weight-helper .extra-network-pane .card .civitai-button::after {
+#weight-helper .preview-pane .card-btn::before,
+#weight-helper .preview-pane .card-btn::after {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
+#weight-helper .preview-pane .edit-btn::before,
+#weight-helper .preview-pane .edit-btn::after {
+    content: "🛠";
+}
+#weight-helper .preview-pane .metadata-btn::before,
+#weight-helper .preview-pane .metadata-btn::after {
+    content: "🛈";
+}
+#weight-helper .preview-pane .civitai-btn::before,
+#weight-helper .preview-pane .civitai-btn::after {
     content: "🌐";
     font-size: calc(75%);
-    position: absolute;
-    left: 0px;
-    top: 50%;
-    transform: translateY(-50%);
 }
-#weight-helper .extra-network-pane .card .civitai-button::after {
+#weight-helper .preview-pane .description-close-btn::before,
+#weight-helper .preview-pane .description-close-btn::after {
+    content: "❌";
+    font-size: calc(75%);
+}
+#weight-helper .preview-pane .note-btn::before,
+#weight-helper .preview-pane .note-btn::after {
+    content: "🖹";
+}
+#weight-helper .preview-pane .card-btn::after {
     color: transparent;
     text-shadow: 0 0 0 white;
 }
-#weight-helper .extra-network-pane .card .civitai-button:hover::after {
+#weight-helper .preview-pane .card-btn:hover::after {
     text-shadow: 0 0 0 red;
 }
-#weight-helper .extra-network-pane .card .preview {
-    all: initial;
+#weight-helper .preview-pane .preview {
     vertical-align: middle;
+}
+#weight-helper .preview-pane .description {
+    visibility: hidden;
+    color: white;
+    font-size: 0.9rem;
+    background-color: rgb(0 0 0 / 50%);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    padding: 5px 5px 35px 5px;
+    margin: 0;
+    box-sizing: border-box;
+    border: none;
+    resize: none;
+    outline: none;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    backdrop-filter: blur(4px) grayscale(0.8);
+}
+#weight-helper .preview-pane .description-close-btn {
+    visibility: hidden;
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 30px;
 }
 #weight-helper .f {
     display: flex;

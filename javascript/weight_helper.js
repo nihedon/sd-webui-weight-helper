@@ -1072,50 +1072,66 @@ class WeightHelper {
         const modelId = res[3];
         if (previewPath) {
             const pane = document.createElement("div");
-            pane.classList.add("extra-network-pane");
-
-            const card = document.createElement("div");
-            card.classList.add("card");
-            pane.appendChild(card);
+            pane.classList.add("preview-pane");
 
             const img = document.createElement("img");
             img.classList.add("preview");
             img.setAttribute("src", previewPath);
-            card.appendChild(img);
+            pane.appendChild(img);
 
-            const buttonRow = document.createElement("div");
-            buttonRow.classList.add("button-row");
-            card.appendChild(buttonRow);
+            const buttonTop = document.createElement("div");
+            buttonTop.classList.add("action-row", "button-top");
+            pane.appendChild(buttonTop);
 
             if (modelId) {
                 const civitaiButton = document.createElement("div");
-                civitaiButton.classList.add("civitai-button", "card-button");
+                civitaiButton.classList.add("civitai-btn", "card-btn");
                 civitaiButton.setAttribute("title", "Open civitai");
                 civitaiButton.addEventListener("click", () => window.open(`https://civitai.com/models/${modelId}`, '_blank'));
-                buttonRow.appendChild(civitaiButton);
+                buttonTop.appendChild(civitaiButton);
             }
 
             const metadataButton = document.createElement("div");
-            metadataButton.classList.add("metadata-button", "card-button");
+            metadataButton.classList.add("metadata-btn", "card-btn");
             metadataButton.setAttribute("title", "Show internal metadata");
             metadataButton.addEventListener("click", (event) => extraNetworksRequestMetadata(event, 'lora', alias));
-            buttonRow.appendChild(metadataButton);
+            buttonTop.appendChild(metadataButton);
 
             const editButton = document.createElement("div");
-            editButton.classList.add("edit-button", "card-button");
+            editButton.classList.add("edit-btn", "card-btn");
             editButton.setAttribute("title", "Edit metadata");
             editButton.addEventListener("click", (event) => extraNetworksEditUserMetadata(event, this.tabId, 'lora', alias));
-            buttonRow.appendChild(editButton);
+            buttonTop.appendChild(editButton);
 
             if (description) {
-                const actions = document.createElement("div");
-                actions.classList.add("actions");
-                card.appendChild(actions);
+                const buttonBottom = document.createElement("div");
+                buttonBottom.classList.add("action-row", "button-bottom");
+                pane.appendChild(buttonBottom);
 
-                const actDesc = document.createElement("span");
+                const actNote = document.createElement("div");
+                actNote.classList.add("card-btn", "note-btn");
+                actNote.addEventListener("click", () => {
+                    buttonTop.style.visibility = "hidden";
+                    buttonBottom.style.visibility = "hidden";
+                    actDesc.style.visibility = "visible";
+                    actDescClose.style.visibility = "visible";
+                });
+                buttonBottom.appendChild(actNote);
+
+                const actDesc = document.createElement("textarea");
                 actDesc.classList.add("description");
                 actDesc.textContent = description;
-                actions.appendChild(actDesc);
+                pane.appendChild(actDesc);
+
+                const actDescClose = document.createElement("div");
+                actDescClose.classList.add("card-btn", "description-close-btn");
+                actDescClose.addEventListener("click", () => {
+                    buttonTop.style.visibility = "";
+                    buttonBottom.style.visibility = "";
+                    actDesc.style.visibility = "";
+                    actDescClose.style.visibility = "";
+                });
+                pane.appendChild(actDescClose);
             }
 
             img.style.height = opts.weight_helper_preview_height + "px";
