@@ -16,9 +16,9 @@ class WeightHelper {
 
     static REGEX = /<([^:]+):([^:]+):([^>]+)>/;
 
-    static SUPPORT_TYPE = new Set(["lora", "lyco"]);
+    static SUPPORT_TYPE_SET = new Set(["lora", "lyco"]);
 
-    static SPECIAL_KEYWORDS = ["XYZ"];
+    static SPECIAL_PRESETS = ["XYZ"];
 
     static last_instance = undefined;
 
@@ -91,6 +91,8 @@ class WeightHelper {
         }
     };
 
+    weightData = {};
+
     usingExecCommand = false;
 
     offsetX = 0;
@@ -99,6 +101,7 @@ class WeightHelper {
 
     lbwPresetsMap = {};
     lbwPresetsValueKeyMap = {};
+    weightUIs = {};
 
     weightTag = null;
     weightType = "";
@@ -106,7 +109,6 @@ class WeightHelper {
     nameHash = null;
     currentHistory = null;
     currentBookmarks = null;
-    weightData = {};
 
     lastSelectionStart = null;
     lastSelectionEnd = null;
@@ -114,14 +116,13 @@ class WeightHelper {
 
     historyIndex = 0;
 
-    customContextMenu = null;
-    bookmarkIcon = null;
+    openedExtraOption = false;
 
-    lbwPresetSelect = null;
-    lbwGroupWrapper = null;
-    weightUIs = {};
-
-    opened = false;
+    domCustomContextMenu = null;
+    domBookmarkIcon = null;
+    domPageLabel = null;
+    domPresetSelect = null;
+    domLbwGroupWrapper = null;
 
     constructor(tabId, textarea, selectionStart, selectionEnd, type, name, allWeights) {
         this.tabId = tabId;
@@ -132,7 +133,7 @@ class WeightHelper {
 
         this.weightTag = type;
         this.name = name;
-        this.nameHash = this.#getNameHash(name);
+        this.nameHash = hashCode(name);
 
         if (!(this.nameHash in weight_helper_history)) {
             weight_helper_history[this.nameHash] = [];
@@ -173,17 +174,6 @@ class WeightHelper {
                 console.warn("execCommand is not supported.");
             }
         }
-    }
-
-    #getNameHash(s) {
-        let hash = 0;
-        if (s.length === 0) return hash;
-        for (let i = 0; i < s.length; i++) {
-            const char = s.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash; // Convert to 32bit integer
-        }
-        return hash;
     }
 
     #areWeightDataEqual(orgWeight1, orgWeight2) {
@@ -233,26 +223,6 @@ class WeightHelper {
                 return weight1[key][0] === weight2[key][0];
             }
         });
-    }
-
-    #getBookmarkIndex() {
-        for (let i = 0; i < this.currentBookmarks.length; i++) {
-            const bookmark = this.currentBookmarks[i];
-            if (this.#areWeightDataEqual(bookmark, this.weightData)) {
-                return i;
-            }
-        }
-        return null;
-    }
-
-    #updateBookmarkedIcon(isBookmarked) {
-        const clsList = this.bookmarkIcon.classList;
-        clsList.remove(clsList.item(1));
-        if (isBookmarked) {
-            clsList.add("like");
-        } else {
-            clsList.add("unlike");
-        }
     }
 
     #init(allWeights) {
@@ -323,7 +293,7 @@ class WeightHelper {
             if (keyType === "lbw") {
                 blocks = weightKeyVal[1].split(',');
 
-                if (blocks.length === 1 && WeightHelper.SPECIAL_KEYWORDS.includes(blocks[0])) {
+                if (blocks.length === 1 && WeightHelper.SPECIAL_PRESETS.includes(blocks[0])) {
                     this.weightData.special = blocks[0];
                 }
 
@@ -393,24 +363,24 @@ class WeightHelper {
     }
 
     #makeContextMenuHeader() {
-        this.customContextMenu = document.createElement('div');
-        this.customContextMenu.id = 'weight-helper';
+        this.domCustomContextMenu = document.createElement('div');
+        this.domCustomContextMenu.id = 'weight-helper';
 
         let scale = opts.weight_helper_context_menu_scale;
         if (scale <= 0) {
             scale = 1;
         }
-        this.customContextMenu.style.transform = `scale(${scale})`;
+        this.domCustomContextMenu.style.transform = `scale(${scale})`;
 
         const header = document.createElement('header');
 
         const headerTitle = document.createElement('span');
         header.appendChild(headerTitle);
 
-        this.bookmarkIcon = document.createElement('span');
-        this.bookmarkIcon.classList.add("bookmark", this.#getBookmarkIndex() != null ? "like" : "unlike");
-        headerTitle.prepend(this.bookmarkIcon);
-        this.bookmarkIcon.addEventListener("click", () => {
+        this.domBookmarkIcon = document.createElement('span');
+        this.domBookmarkIcon.classList.add("bookmark", this.#getBookmarkIndex() != null ? "like" : "unlike");
+        headerTitle.prepend(this.domBookmarkIcon);
+        this.domBookmarkIcon.addEventListener("click", () => {
             const bookmarkIndex = this.#getBookmarkIndex();
             const isBookmarked = bookmarkIndex != null;
 
@@ -439,73 +409,8 @@ class WeightHelper {
         pageWrapper.classList.add("page");
         history.appendChild(pageWrapper);
 
-        const pageLabel = document.createElement('label');
-        pageLabel.textContent = (this.historyIndex + 1) + "/" + this.currentHistory.length;
-
-        const restoreFromHistory = () => {
-            pageLabel.textContent = (this.historyIndex + 1) + "/" + this.currentHistory.length;
-            this.weightData = structuredClone(this.currentHistory[this.historyIndex]);
-
-            Object.keys(this.weightData).map(key => {
-                if (["VERSION"].includes(key)) {
-                    return;
-                }
-                if (["stop"].includes(key)) {
-                    if (this.weightData[key][0] == null) {
-                        this.weightData[key][0] = this.WEIGHT_SETTINGS[key].default;
-                    }
-                }
-                for (const idx in this.weightData[key]) {
-                    let fVal = this.weightData[key][idx];
-                    if (key in this.weightUIs) {
-                        let isExtraType = false;
-                        let show = false;
-                        if (["unet", "dyn"].includes(key)) {
-                            isExtraType = true;
-                            const useCheck = this.weightData[`use_${key}`];
-                            this.weightUIs[key].use_check.checked = useCheck;
-                            show = useCheck;
-                        }
-                        if (["start", "stop"].includes(key)) {
-                            isExtraType = true;
-                            let val = this.weightData[key];
-                            if (val[0] != null && val[0] != this.WEIGHT_SETTINGS[key].default) {
-                                show = true;
-                            }
-                        }
-                        if (!this.opened && isExtraType) {
-                            const parent = this.weightUIs[key].slider[0].closest("section");
-                            parent.style.display = show ? "flex" : "none";
-                        }
-                        if (fVal == null) {
-                            fVal = 0;
-                        }
-                        this.weightUIs[key].slider[idx].value = fVal;
-                        this.weightUIs[key].updown[idx].value = fVal / 100;
-                    }
-                }
-            });
-
-            if (this.weightData.special) {
-                this.lbwPresetSelect.value = this.weightData.special;
-                this.lbwGroupWrapper.style.display = "none";
-            } else {
-                const lbwValues = this.#lbwWeightData().join(",");
-                if (lbwValues in this.lbwPresetsValueKeyMap[this.weightTag][this.weightType]) {
-                    this.lbwPresetSelect.value = lbwValues;
-                } else {
-                    this.lbwPresetSelect.selectedIndex = 0;
-                }
-                this.lbwGroupWrapper.style.display = "flex";
-            }
-
-            if (!this.usingExecCommand) {
-                const updatedText = this.#getUpdatedText();
-                this.#update(updatedText);
-            }
-
-            this.#updateBookmarkedIcon(this.#getBookmarkIndex() != null);
-        }
+        this.domPageLabel = document.createElement('label');
+        this.domPageLabel.textContent = (this.historyIndex + 1) + "/" + this.currentHistory.length;
 
         const pageLeft = document.createElement('a');
         pageLeft.textContent = "<";
@@ -516,10 +421,10 @@ class WeightHelper {
                 return;
             }
             this.historyIndex--;
-            restoreFromHistory();
+            this.#restoreFromHistory();
         });
 
-        pageWrapper.appendChild(pageLabel);
+        pageWrapper.appendChild(this.domPageLabel);
 
         const pageRight = document.createElement('a');
         pageRight.textContent = ">";
@@ -530,16 +435,16 @@ class WeightHelper {
                 return;
             }
             this.historyIndex++;
-            restoreFromHistory();
+            this.#restoreFromHistory();
         });
 
-        this.customContextMenu.appendChild(header);
+        this.domCustomContextMenu.appendChild(header);
 
-        this.customContextMenu.addEventListener('mousedown', (e) => {
+        this.domCustomContextMenu.addEventListener('mousedown', (e) => {
             if (e.target.closest('header')) {
                 this.isDragging = true;
-                this.offsetX = e.clientX - this.customContextMenu.getBoundingClientRect().left;
-                this.offsetY = e.clientY - this.customContextMenu.getBoundingClientRect().top;
+                this.offsetX = e.clientX - this.domCustomContextMenu.getBoundingClientRect().left;
+                this.offsetY = e.clientY - this.domCustomContextMenu.getBoundingClientRect().top;
             }
         });
 
@@ -549,8 +454,8 @@ class WeightHelper {
             const x = e.clientX - this.offsetX + window.scrollX;
             const y = e.clientY - this.offsetY + window.scrollY;
 
-            this.customContextMenu.style.left = x + 'px';
-            this.customContextMenu.style.top = y + 'px';
+            this.domCustomContextMenu.style.left = x + 'px';
+            this.domCustomContextMenu.style.top = y + 'px';
         });
 
         document.addEventListener('mouseup', () => {
@@ -559,7 +464,7 @@ class WeightHelper {
     }
 
     #makeContextMenuBody() {
-        const children = this.customContextMenu.getElementsByTagName("section");
+        const children = this.domCustomContextMenu.getElementsByTagName("section");
         while (children.length > 0) {
             children[0].parentNode.removeChild(children[0]);
         }
@@ -585,7 +490,7 @@ class WeightHelper {
             section.appendChild(this.#makeSliderComponent(labelContainer, null, group, 0));
 
             if (weightSetting.label === "TEnc") {
-                this.customContextMenu.appendChild(section);
+                this.domCustomContextMenu.appendChild(section);
             } else {
                 extraOpts.push(section);
                 const defVal = this.WEIGHT_SETTINGS[group].default;
@@ -595,7 +500,7 @@ class WeightHelper {
                     section.style.display = 'none';
                     hiddenExtraOpts++;
                 }
-                this.customContextMenu.appendChild(section);
+                this.domCustomContextMenu.appendChild(section);
             }
         }
 
@@ -609,9 +514,9 @@ class WeightHelper {
                 for (const extra of extraOpts) {
                     extra.style.display = '';
                 }
-                this.opened = true;
+                this.openedExtraOption = true;
             });
-            this.customContextMenu.appendChild(extraButton);
+            this.domCustomContextMenu.appendChild(extraButton);
         }
 
         const group = "lbw";
@@ -685,18 +590,18 @@ class WeightHelper {
         typeRow.appendChild(typeTypeRow);
         lbwSet.appendChild(typeRow);
 
-        this.lbwPresetSelect = document.createElement('select');
-        lbwSet.appendChild(this.lbwPresetSelect);
+        this.domPresetSelect = document.createElement('select');
+        lbwSet.appendChild(this.domPresetSelect);
 
-        this.lbwPresetSelect.addEventListener("change", (e) => {
+        this.domPresetSelect.addEventListener("change", (e) => {
             const selectVal = e.target.value;
-            const isSpecial = WeightHelper.SPECIAL_KEYWORDS.includes(selectVal);
+            const isSpecial = WeightHelper.SPECIAL_PRESETS.includes(selectVal);
             if (!isSpecial) {
                 this.weightData.special = "";
-                this.lbwGroupWrapper.style.display = "flex";
+                this.domLbwGroupWrapper.style.display = "flex";
             } else {
                 this.weightData.special = selectVal;
-                this.lbwGroupWrapper.style.display = "none";
+                this.domLbwGroupWrapper.style.display = "none";
             }
 
             if (!isSpecial) {
@@ -727,7 +632,8 @@ class WeightHelper {
                 }
             }
 
-            const isBookmarked = this.#getBookmarkIndex();
+            const bookmarkIndex = this.#getBookmarkIndex();
+            const isBookmarked = bookmarkIndex != null;
             this.#updateBookmarkedIcon(isBookmarked);
 
             if (!this.usingExecCommand) {
@@ -744,37 +650,37 @@ class WeightHelper {
             const label = document.createElement('label');
             label.textContent = this.WEIGHT_SETTINGS[group].labels[idx];
             lbwUnit.appendChild(label);
-            lbwUnit.appendChild(this.#makeSliderComponent(null, this.lbwPresetSelect, group, idx));
+            lbwUnit.appendChild(this.#makeSliderComponent(null, this.domPresetSelect, group, idx));
 
             this.weightUIs.lbw.dom.push(lbwUnit);
         }
 
-        this.lbwGroupWrapper = document.createElement('div');
-        this.lbwGroupWrapper.classList.add('lbw-group-wrapper', 'f', 'col', 'g-2');
+        this.domLbwGroupWrapper = document.createElement('div');
+        this.domLbwGroupWrapper.classList.add('lbw-group-wrapper', 'f', 'col', 'g-2');
         if (!this.weightData.special) {
-            this.lbwGroupWrapper.style.display = "flex";
+            this.domLbwGroupWrapper.style.display = "flex";
         } else {
-            this.lbwGroupWrapper.style.display = "none";
+            this.domLbwGroupWrapper.style.display = "none";
         }
 
-        lbwSet.appendChild(this.lbwGroupWrapper);
-        this.customContextMenu.appendChild(lbwSection);
+        lbwSet.appendChild(this.domLbwGroupWrapper);
+        this.domCustomContextMenu.appendChild(lbwSection);
     }
 
     #makeLbwGroupWrapper() {
-        while (this.lbwPresetSelect.firstChild) {
-            this.lbwPresetSelect.removeChild(this.lbwPresetSelect.firstChild);
+        while (this.domPresetSelect.firstChild) {
+            this.domPresetSelect.removeChild(this.domPresetSelect.firstChild);
         }
         const opt = document.createElement('option');
         opt.value = "";
         opt.text = "";
-        this.lbwPresetSelect.appendChild(opt);
+        this.domPresetSelect.appendChild(opt);
 
-        for (const sp of WeightHelper.SPECIAL_KEYWORDS) {
+        for (const sp of WeightHelper.SPECIAL_PRESETS) {
             const spOpt = document.createElement('option');
             spOpt.value = sp;
             spOpt.text = sp;
-            this.lbwPresetSelect.appendChild(spOpt);
+            this.domPresetSelect.appendChild(spOpt);
         }
 
         if (Object.keys(this.lbwPresetsMap[this.weightTag][this.weightType]).length) {
@@ -782,13 +688,13 @@ class WeightHelper {
                 const opt = document.createElement('option');
                 opt.text = key;
                 opt.value = this.lbwPresetsMap[this.weightTag][this.weightType][key];
-                this.lbwPresetSelect.appendChild(opt);
+                this.domPresetSelect.appendChild(opt);
             }
         }
-        this.lbwPresetSelect.value = this.#lbwWeightData();
+        this.domPresetSelect.value = this.#lbwWeightData();
 
-        while (this.lbwGroupWrapper.firstChild) {
-            this.lbwGroupWrapper.removeChild(this.lbwGroupWrapper.firstChild);
+        while (this.domLbwGroupWrapper.firstChild) {
+            this.domLbwGroupWrapper.removeChild(this.domLbwGroupWrapper.firstChild);
         }
 
         const lbwWeightSetting = this.LBW_WEIGHT_SETTINGS[this.weightTag][this.weightType];
@@ -811,7 +717,7 @@ class WeightHelper {
                     lbwGroup.appendChild(this.weightUIs.lbw.dom[idx]);
                 }
             }
-            this.lbwGroupWrapper.appendChild(lbwGroup);
+            this.domLbwGroupWrapper.appendChild(lbwGroup);
         }
     }
 
@@ -865,7 +771,8 @@ class WeightHelper {
             useCheck.addEventListener("change", (e) => {
                 this.weightData[`use_${group}`] = e.target.checked;
 
-                const isBookmarked = this.#getBookmarkIndex();
+                const bookmarkIndex = this.#getBookmarkIndex();
+                const isBookmarked = bookmarkIndex != null;
                 this.#updateBookmarkedIcon(isBookmarked);
 
                 if (!this.usingExecCommand) {
@@ -910,7 +817,8 @@ class WeightHelper {
                 }
             }
 
-            const isBookmarked = this.#getBookmarkIndex();
+            const bookmarkIndex = this.#getBookmarkIndex();
+            const isBookmarked = bookmarkIndex != null;
             this.#updateBookmarkedIcon(isBookmarked);
 
             if (!this.usingExecCommand) {
@@ -932,6 +840,91 @@ class WeightHelper {
             changedLbwValues();
         });
         return sliderContainer;
+    }
+
+    #restoreFromHistory() {
+        this.domPageLabel.textContent = (this.historyIndex + 1) + "/" + this.currentHistory.length;
+        this.weightData = structuredClone(this.currentHistory[this.historyIndex]);
+
+        Object.keys(this.weightData).map(key => {
+            if (["VERSION"].includes(key)) {
+                return;
+            }
+            if (["stop"].includes(key)) {
+                if (this.weightData[key][0] == null) {
+                    this.weightData[key][0] = this.WEIGHT_SETTINGS[key].default;
+                }
+            }
+            for (const idx in this.weightData[key]) {
+                let fVal = this.weightData[key][idx];
+                if (key in this.weightUIs) {
+                    let isExtraType = false;
+                    let show = false;
+                    if (["unet", "dyn"].includes(key)) {
+                        isExtraType = true;
+                        const useCheck = this.weightData[`use_${key}`];
+                        this.weightUIs[key].use_check.checked = useCheck;
+                        show = useCheck;
+                    }
+                    if (["start", "stop"].includes(key)) {
+                        isExtraType = true;
+                        let val = this.weightData[key];
+                        if (val[0] != null && val[0] != this.WEIGHT_SETTINGS[key].default) {
+                            show = true;
+                        }
+                    }
+                    if (!this.openedExtraOption && isExtraType) {
+                        const parent = this.weightUIs[key].slider[0].closest("section");
+                        parent.style.display = show ? "flex" : "none";
+                    }
+                    if (fVal == null) {
+                        fVal = 0;
+                    }
+                    this.weightUIs[key].slider[idx].value = fVal;
+                    this.weightUIs[key].updown[idx].value = fVal / 100;
+                }
+            }
+        });
+
+        if (this.weightData.special) {
+            this.domPresetSelect.value = this.weightData.special;
+            this.domLbwGroupWrapper.style.display = "none";
+        } else {
+            const lbwValues = this.#lbwWeightData().join(",");
+            if (lbwValues in this.lbwPresetsValueKeyMap[this.weightTag][this.weightType]) {
+                this.domPresetSelect.value = lbwValues;
+            } else {
+                this.domPresetSelect.selectedIndex = 0;
+            }
+            this.domLbwGroupWrapper.style.display = "flex";
+        }
+
+        if (!this.usingExecCommand) {
+            const updatedText = this.#getUpdatedText();
+            this.#update(updatedText);
+        }
+
+        this.#updateBookmarkedIcon(this.#getBookmarkIndex() != null);
+    }
+
+    #getBookmarkIndex() {
+        for (let i = 0; i < this.currentBookmarks.length; i++) {
+            const bookmark = this.currentBookmarks[i];
+            if (this.#areWeightDataEqual(bookmark, this.weightData)) {
+                return i;
+            }
+        }
+        return null;
+    }
+
+    #updateBookmarkedIcon(isBookmarked) {
+        const clsList = this.domBookmarkIcon.classList;
+        clsList.remove(clsList.item(1));
+        if (isBookmarked) {
+            clsList.add("like");
+        } else {
+            clsList.add("unlike");
+        }
     }
 
     #getUpdatedText() {
@@ -1130,35 +1123,35 @@ class WeightHelper {
             switch (opts.weight_helper_preview_position) {
                 case "Bottom Right":
                     pane.style.bottom = "0px";
-                    pane.style.left = String(this.customContextMenu.clientWidth + 6) + "px";
+                    pane.style.left = String(this.domCustomContextMenu.clientWidth + 6) + "px";
                     break;
                 case "Top Left":
                     pane.style.top = "0px"
-                    pane.style.right = String(this.customContextMenu.clientWidth + 6) + "px";
+                    pane.style.right = String(this.domCustomContextMenu.clientWidth + 6) + "px";
                     break;
                 case "Bottom Left":
                     pane.style.bottom = "0px";
-                    pane.style.right = String(this.customContextMenu.clientWidth + 6) + "px";
+                    pane.style.right = String(this.domCustomContextMenu.clientWidth + 6) + "px";
                     break;
                 default:
                     pane.style.top = "0px"
-                    pane.style.left = String(this.customContextMenu.clientWidth + 6) + "px";
+                    pane.style.left = String(this.domCustomContextMenu.clientWidth + 6) + "px";
                     break;
             }
-            this.customContextMenu.prepend(pane);
+            this.domCustomContextMenu.prepend(pane);
         }
     }
 
     show(top, left) {
-        this.customContextMenu.style.top = top + 'px';
-        this.customContextMenu.style.left = left + 'px';
-        document.body.appendChild(this.customContextMenu);
-        const diffBottom = window.innerHeight - this.customContextMenu.getBoundingClientRect().bottom;
+        this.domCustomContextMenu.style.top = top + 'px';
+        this.domCustomContextMenu.style.left = left + 'px';
+        document.body.appendChild(this.domCustomContextMenu);
+        const diffBottom = window.innerHeight - this.domCustomContextMenu.getBoundingClientRect().bottom;
         if (diffBottom < 0) {
-            this.customContextMenu.style.top = (top + diffBottom) + 'px';
-            const diffTop = this.customContextMenu.getBoundingClientRect().top;
+            this.domCustomContextMenu.style.top = (top + diffBottom) + 'px';
+            const diffTop = this.domCustomContextMenu.getBoundingClientRect().top;
             if (diffTop < 0) {
-                this.customContextMenu.style.top = window.scrollY + 'px';
+                this.domCustomContextMenu.style.top = window.scrollY + 'px';
             }
         }
         document.body.addEventListener('click', this.close);
@@ -1166,15 +1159,15 @@ class WeightHelper {
     }
 
     close = (e) => {
-        if (!this.customContextMenu) return;
+        if (!this.domCustomContextMenu) return;
         if (e && e.target.id === `${this.tabId}_token_button`) return;
-        if (e && this.customContextMenu.contains(e.target)) return;
+        if (e && this.domCustomContextMenu.contains(e.target)) return;
 
-        if (this.customContextMenu.parentNode === document.body &&
+        if (this.domCustomContextMenu.parentNode === document.body &&
                 (!e || e.target.id != "weight-helper-show-extra-opt-button")) {
             WeightHelper.last_instance = undefined;
             if (e != null && e.target.id.indexOf("_interrupt") > 0) {
-                document.body.removeChild(this.customContextMenu);
+                document.body.removeChild(this.domCustomContextMenu);
                 window.removeEventListener("click", this.close);
                 return;
             }
@@ -1189,10 +1182,21 @@ class WeightHelper {
                 }
             }
             this.#trySave();
-            document.body.removeChild(this.customContextMenu);
+            document.body.removeChild(this.domCustomContextMenu);
             window.removeEventListener("click", this.close);
         }
     };
+}
+
+function hashCode(s) {
+    let hash = 0;
+    if (s.length === 0) return hash;
+    for (let i = 0; i < s.length; i++) {
+        const char = s.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return hash;
 }
 
 async function postAPI(url, body) {
@@ -1273,7 +1277,7 @@ function init(_, tabId) {
                 const name = match[2];
                 const weights = match[3];
 
-                if (WeightHelper.SUPPORT_TYPE.has(type)) {
+                if (WeightHelper.SUPPORT_TYPE_SET.has(type)) {
                     e.preventDefault();
 
                     const selectionStart = tmpSelectionStart + match.index;
