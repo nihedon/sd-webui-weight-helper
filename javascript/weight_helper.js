@@ -2,6 +2,14 @@
 
 const VERSION = "1.2.0"
 var weight_helper_history = JSON.parse(localStorage.getItem("weight_helper"));
+if (weight_helper_history) {
+    Object.keys(weight_helper_history).forEach(nameHash => {
+        weight_helper_history[nameHash] = weight_helper_history[nameHash].filter(v => v.VERSION == VERSION);
+    });
+} else {
+    weight_helper_history = {};
+}
+var weight_helper_bookmark = structuredClone(weight_helper_history);
 var weight_helper_type = JSON.parse(localStorage.getItem("weight_helper_type"));
 
 class WeightHelper {
@@ -97,6 +105,7 @@ class WeightHelper {
     name = null;
     nameHash = null;
     currentHistory = null;
+    currentBookmarks = null;
     weightData = {};
 
     lastSelectionStart = null;
@@ -106,13 +115,13 @@ class WeightHelper {
     historyIndex = 0;
 
     customContextMenu = null;
+    bookmarkIcon = null;
 
     lbwPresetSelect = null;
     lbwGroupWrapper = null;
     weightUIs = {};
 
     opened = false;
-    addedTempWeightData = false;
 
     constructor(tabId, textarea, selectionStart, selectionEnd, type, name, allWeights) {
         this.tabId = tabId;
@@ -123,7 +132,12 @@ class WeightHelper {
 
         this.weightTag = type;
         this.name = name;
-        this.nameHash = this.#hashCode(name);
+        this.nameHash = this.#getNameHash(name);
+
+        if (!(this.nameHash in weight_helper_history)) {
+            weight_helper_history[this.nameHash] = [];
+            weight_helper_bookmark[this.nameHash] = [];
+        }
 
         const optBlockPattern = /((BASE|MID|M00|(IN|OUT)[0-9]{2}(-(IN|OUT)[0-9]{2})?) *(, *|$))+/;
         for (let weightTag of this.LBW_WEIGHT_TAGS) {
@@ -143,13 +157,13 @@ class WeightHelper {
 
         this.#init(allWeights);
 
-        this.#initContextMenuHeader();
+        this.#makeContextMenuHeader();
 
         if (opts.weight_helper_show_preview) {
             this.#makePreview();
         }
 
-        this.#initContextMenuBody();
+        this.#makeContextMenuBody();
         this.#makeLbwGroupWrapper();
 
         if (opts.weight_helper_using_execCommand) {
@@ -161,7 +175,7 @@ class WeightHelper {
         }
     }
 
-    #hashCode(s) {
+    #getNameHash(s) {
         let hash = 0;
         if (s.length === 0) return hash;
         for (let i = 0; i < s.length; i++) {
@@ -173,10 +187,11 @@ class WeightHelper {
     }
 
     #areWeightDataEqual(orgWeight1, orgWeight2) {
+        if (orgWeight1 == null || orgWeight2 == null) {
+            return false;
+        }
         const clean = (weight) => {
             delete weight.VERSION;
-            delete weight.DATE;
-            delete weight.is_bookmarked;
             if (!weight.use_unet) {
                 weight.unet = undefined;
             }
@@ -184,7 +199,7 @@ class WeightHelper {
                 weight.dyn = undefined;
             }
             if (weight.stop[0] == this.WEIGHT_SETTINGS.stop.default) {
-                weight.stop[0] = undefined;
+                weight.stop[0] = null;
             }
             return weight;
         }
@@ -220,20 +235,24 @@ class WeightHelper {
         });
     }
 
-    #isDefault(weightData) {
-        for (const weightType of Object.keys(this.WEIGHT_SETTINGS)) {
-            for (const val of weightData[weightType]) {
-                const def = this.WEIGHT_SETTINGS[weightType].default;
-                if (def === undefined) {
-                    if ((val != null && val !== 0) || weightData[`use_${weightType}`]) {
-                        return false;
-                    }
-                } else if (val !== def) {
-                    return false;
-                }
+    #getBookmarkIndex() {
+        for (let i = 0; i < this.currentBookmarks.length; i++) {
+            const bookmark = this.currentBookmarks[i];
+            if (this.#areWeightDataEqual(bookmark, this.weightData)) {
+                return i;
             }
         }
-        return true;
+        return null;
+    }
+
+    #updateBookmarkedIcon(isBookmarked) {
+        const clsList = this.bookmarkIcon.classList;
+        clsList.remove(clsList.item(1));
+        if (isBookmarked) {
+            clsList.add("like");
+        } else {
+            clsList.add("unlike");
+        }
     }
 
     #init(allWeights) {
@@ -360,32 +379,20 @@ class WeightHelper {
             }
         }
 
-        this.weightData.is_bookmarked = false;
-
-        if (!weight_helper_history) {
-            weight_helper_history = {};
-        }
-        if (!(this.nameHash in weight_helper_history)) {
-            weight_helper_history[this.nameHash] = [];
-        }
-        weight_helper_history[this.nameHash] = weight_helper_history[this.nameHash].filter(v => v.VERSION == VERSION);
         this.currentHistory = weight_helper_history[this.nameHash];
+        this.currentBookmarks = weight_helper_bookmark[this.nameHash];
         if (this.currentHistory.length == 0) {
             this.currentHistory.push(structuredClone(this.weightData));
         } else {
-            const lastWeightData = this.currentHistory.at(-1);
-            if (this.#areWeightDataEqual(lastWeightData, this.weightData)) {
-                if (lastWeightData.is_bookmarked) {
-                    this.currentHistory.push(structuredClone(this.weightData));
-                    this.addedTempWeightData = true;
-                }
+            const historyLen = this.currentHistory.length;
+            if (!this.#areWeightDataEqual(this.currentHistory[historyLen - 1], this.weightData)) {
+                this.currentHistory.push(structuredClone(this.weightData));
             }
         }
         this.historyIndex = this.currentHistory.length - 1;
     }
 
-    #initContextMenuHeader() {
-
+    #makeContextMenuHeader() {
         this.customContextMenu = document.createElement('div');
         this.customContextMenu.id = 'weight-helper';
 
@@ -400,22 +407,22 @@ class WeightHelper {
         const headerTitle = document.createElement('span');
         header.appendChild(headerTitle);
 
-        const bookmark = document.createElement('span');
-        bookmark.classList.add("bookmark", this.weightData.is_bookmarked ? "like" : "unlike");
-        headerTitle.prepend(bookmark);
-        bookmark.addEventListener("click", (e) => {
-            const weightData = this.currentHistory[this.historyIndex];
-            const clsList = e.target.classList;
-            const lk = clsList.item(1);
-            clsList.remove(lk);
-            if (lk === "like") {
-                weightData.is_bookmarked = false;
-                this.weightData.is_bookmarked = false;
-                clsList.add("unlike");
+        this.bookmarkIcon = document.createElement('span');
+        this.bookmarkIcon.classList.add("bookmark", this.#getBookmarkIndex() != null ? "like" : "unlike");
+        headerTitle.prepend(this.bookmarkIcon);
+        this.bookmarkIcon.addEventListener("click", () => {
+            const bookmarkIndex = this.#getBookmarkIndex();
+            const isBookmarked = bookmarkIndex != null;
+
+            this.#updateBookmarkedIcon(!isBookmarked);
+            if (isBookmarked) {
+                this.currentBookmarks.splice(bookmarkIndex, 1);
             } else {
-                weightData.is_bookmarked = true;
-                this.weightData.is_bookmarked = true;
-                clsList.add("like");
+                const weightDataClone = structuredClone(this.weightData);
+                if (weightDataClone.stop[0] == this.WEIGHT_SETTINGS.stop.default) {
+                    weightDataClone.stop[0] = null;
+                }
+                this.currentBookmarks.push(weightDataClone);
             }
         });
 
@@ -440,7 +447,7 @@ class WeightHelper {
             this.weightData = structuredClone(this.currentHistory[this.historyIndex]);
 
             Object.keys(this.weightData).map(key => {
-                if (["VERSION", "DATE"].includes(key)) {
+                if (["VERSION"].includes(key)) {
                     return;
                 }
                 if (["stop"].includes(key)) {
@@ -497,13 +504,7 @@ class WeightHelper {
                 this.#update(updatedText);
             }
 
-            const lk = bookmark.classList.item(1);
-            bookmark.classList.remove(lk);
-            if (this.weightData.is_bookmarked) {
-                bookmark.classList.add("like");
-            } else {
-                bookmark.classList.add("unlike");
-            }
+            this.#updateBookmarkedIcon(this.#getBookmarkIndex() != null);
         }
 
         const pageLeft = document.createElement('a');
@@ -557,7 +558,7 @@ class WeightHelper {
         });
     }
 
-    #initContextMenuBody() {
+    #makeContextMenuBody() {
         const children = this.customContextMenu.getElementsByTagName("section");
         while (children.length > 0) {
             children[0].parentNode.removeChild(children[0]);
@@ -726,6 +727,9 @@ class WeightHelper {
                 }
             }
 
+            const isBookmarked = this.#getBookmarkIndex();
+            this.#updateBookmarkedIcon(isBookmarked);
+
             if (!this.usingExecCommand) {
                 const updatedText = this.#getUpdatedText();
                 this.#update(updatedText);
@@ -860,6 +864,10 @@ class WeightHelper {
             const useCheck = document.createElement('input');
             useCheck.addEventListener("change", (e) => {
                 this.weightData[`use_${group}`] = e.target.checked;
+
+                const isBookmarked = this.#getBookmarkIndex();
+                this.#updateBookmarkedIcon(isBookmarked);
+
                 if (!this.usingExecCommand) {
                     const updatedText = this.#getUpdatedText();
                     this.#update(updatedText);
@@ -901,6 +909,10 @@ class WeightHelper {
                     this.weightData[`use_${group}`] = true;
                 }
             }
+
+            const isBookmarked = this.#getBookmarkIndex();
+            this.#updateBookmarkedIcon(isBookmarked);
+
             if (!this.usingExecCommand) {
                 const updatedText = this.#getUpdatedText();
                 this.#update(updatedText);
@@ -1031,42 +1043,22 @@ class WeightHelper {
         let historyChanged = false;
         if (this.historyIndex == historyLen - 1) {
             historyChanged = !this.#areWeightDataEqual(lastWeightData, this.weightData);
-            lastWeightData.DATE = new Date().getTime();
             if (historyChanged) {
-                if (historyLen == 1 && this.#isDefault(lastWeightData)) {
-                    this.currentHistory.pop();
-                } else if (this.weightData.is_bookmarked) {
-                    this.currentHistory.pop();
-                }
                 this.currentHistory.push(this.weightData);
             }
         } else {
-            const swap = this.currentHistory[this.historyIndex];
-            if (swap.is_bookmarked) {
-                this.currentHistory[this.historyIndex] = this.weightData;
-            } else {
-                this.currentHistory.splice(this.historyIndex, 1)[0];
-                historyChanged = true;
-            }
-            this.weightData.DATE = new Date().getTime();
-            if (historyChanged) {
-                this.currentHistory.push(this.weightData);
-            }
+            this.currentHistory.splice(this.historyIndex, 1);
+            this.currentHistory.push(this.weightData);
         }
         if (this.weightData.stop[0] == this.WEIGHT_SETTINGS.stop.default) {
-            this.weightData.stop[0] = undefined;
+            this.weightData.stop[0] = null;
         }
-
-        const historyClone = structuredClone(weight_helper_history);
-        historyClone[this.nameHash] = historyClone[this.nameHash].filter(weightData => {
-            return weightData.is_bookmarked;
-        });
-        localStorage.setItem("weight_helper", JSON.stringify(historyClone));
+        localStorage.setItem("weight_helper", JSON.stringify(weight_helper_bookmark));
     }
 
     async #makePreview() {
-        const res = await postAPI("/whapi/v1/get_preview?key=" + encodeURIComponent(this.name), null);
-        const alias = res[0];
+        const res = await postAPI("/whapi/v1/get_lora_info?key=" + encodeURIComponent(this.name), null);
+        const loraName = res[0];
         const previewPath = res[1];
         const description = res[2];
         const modelId = res[3];
@@ -1094,13 +1086,13 @@ class WeightHelper {
             const metadataButton = document.createElement("div");
             metadataButton.classList.add("metadata-btn", "card-btn");
             metadataButton.setAttribute("title", "Show internal metadata");
-            metadataButton.addEventListener("click", (event) => extraNetworksRequestMetadata(event, 'lora', alias));
+            metadataButton.addEventListener("click", (event) => extraNetworksRequestMetadata(event, 'lora', loraName));
             buttonTop.appendChild(metadataButton);
 
             const editButton = document.createElement("div");
             editButton.classList.add("edit-btn", "card-btn");
             editButton.setAttribute("title", "Edit metadata");
-            editButton.addEventListener("click", (event) => extraNetworksEditUserMetadata(event, this.tabId, 'lora', alias));
+            editButton.addEventListener("click", (event) => extraNetworksEditUserMetadata(event, this.tabId, 'lora', loraName));
             buttonTop.appendChild(editButton);
 
             if (description) {

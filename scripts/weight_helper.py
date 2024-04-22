@@ -21,9 +21,9 @@ class WeightHelperAPI:
             WeightHelperAPI.instance = WeightHelperAPI()
 
         instance = WeightHelperAPI.instance
-        @app.post(prefix + "/get_preview")
+        @app.post(prefix + "/get_lora_info")
         async def _(key: str):
-            return instance.get_preview(key)
+            return instance.get_lora_info(key)
 
     def __new__(cls, *args, **kwargs):
         if not cls.instance:
@@ -34,7 +34,7 @@ class WeightHelperAPI:
         self.module_lora = importlib.import_module("extensions-builtin.Lora.lora")
         self.lister = util.MassFileLister()
 
-    def get_preview(self, key):
+    def get_lora_info(self, key):
         lora = self.module_lora.available_lora_aliases.get(key)
         if not lora:
             return None
@@ -52,7 +52,7 @@ class WeightHelperAPI:
         preview = self._find_preview(path)
         description = self._find_description(path)
         modelId = self._find_civitai_model_id(path)
-        return lora.alias, preview, description, modelId
+        return lora.name, preview, description, modelId
 
     def _link_preview(self, filename):
         quoted_filename = urllib.parse.quote(filename.replace('\\', '/'))
