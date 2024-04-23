@@ -1,18 +1,13 @@
 'use strict';
 
 const VERSION = "1.2.0"
-var weight_helper_history = JSON.parse(localStorage.getItem("weight_helper"));
-if (weight_helper_history) {
-    Object.keys(weight_helper_history).forEach(nameHash => {
-        weight_helper_history[nameHash] = weight_helper_history[nameHash].filter(v => v.VERSION == VERSION);
-    });
-} else {
-    weight_helper_history = {};
-}
-var weight_helper_bookmark = structuredClone(weight_helper_history);
-var weight_helper_type = JSON.parse(localStorage.getItem("weight_helper_type"));
+//localStorage.clear("weight_helper");
 
-var SAMPLING_STEPS;
+var weight_helper_history;
+var weight_helper_bookmark;
+var weight_helper_type;
+
+var sampling_steps;
 
 class WeightSet {
     map;
@@ -27,6 +22,9 @@ class WeightSet {
     }
     delete(weightData) {
         return this.map.delete(weightData.hashCode());
+    }
+    clear() {
+        return this.map.clear();
     }
 }
 
@@ -47,6 +45,10 @@ class WeightData {
         if (data) {
             Object.assign(this, data);
         }
+    }
+
+    isSpecial() {
+        return this.special != null && this.special !== "";
     }
 
     clone() {
@@ -75,21 +77,24 @@ class WeightData {
         if (this.start[0] !== other.start[0]) {
             return false;
         }
-        let stop1 = this.stop[0] == null ? SAMPLING_STEPS : this.stop[0];
-        let stop2 = other.stop[0] == null ? SAMPLING_STEPS : other.stop[0];
+        let stop1 = this.stop[0] == null ? sampling_steps : this.stop[0];
+        let stop2 = other.stop[0] == null ? sampling_steps : other.stop[0];
         if (stop1 !== stop2) {
             return false;
         }
         if (this.lbw.length !== other.lbw.length) {
             return false;
         }
-        for (let i = 0; i < this.lbw.length; i++) {
-            if (this.lbw[i] !== other.lbw[i]) {
+        if (this.isSpecial()) {
+            if (this.special !== other.special) {
                 return false;
             }
-        }
-        if (this.special !== other.special) {
-            return false;
+        } else {
+            for (let i = 0; i < this.lbw.length; i++) {
+                if (this.lbw[i] !== other.lbw[i]) {
+                    return false;
+                }
+            }
         }
         return true;
     }
@@ -102,11 +107,14 @@ class WeightData {
         hash = 31 * hash + (this.use_dyn ? 1 : 0);
         hash = 31 * hash + (this.use_dyn ? this.dyn[0] : 0);
         hash = 31 * hash + (this.start[0]);
-        hash = 31 * hash + (this.stop[0] == null ? SAMPLING_STEPS : this.stop[0]);
-        for (let i = 0; i < this.lbw.length; i++) {
-            hash = 31 * hash + this.lbw[i];
+        hash = 31 * hash + (this.stop[0] == null ? sampling_steps : this.stop[0]);
+        if (this.isSpecial()) {
+            hash = 31 * hash + hashCode(this.special);
+        } else {
+            for (let i = 0; i < this.lbw.length; i++) {
+                hash = 31 * hash + this.lbw[i];
+            }
         }
-        hash = 31 * hash + hashCode(this.special);
         return hash;
     }
 }
@@ -206,8 +214,8 @@ class WeightHelper {
     weightType = "";
     name = null;
     nameHash = null;
-    currentHistory = [];
-    currentBookmarks = new WeightSet();
+    currentHistory = null;
+    currentBookmarkSet = new WeightSet();
     weightData = new WeightData();
 
     lastSelectionStart = null;
@@ -236,7 +244,7 @@ class WeightHelper {
         this.nameHash = hashCode(name);
 
         const samplingSteps = gradioApp().getElementById(`${this.tabId}_steps`).querySelector("input");
-        SAMPLING_STEPS = parseInt(samplingSteps.value) * 100;
+        sampling_steps = parseInt(samplingSteps.value) * 100;
 
         if (!(this.nameHash in weight_helper_history)) {
             weight_helper_history[this.nameHash] = [];
@@ -284,9 +292,9 @@ class WeightHelper {
             weight_helper_type = {};
         }
 
-        this.WEIGHT_SETTINGS.start.max = SAMPLING_STEPS;
-        this.WEIGHT_SETTINGS.stop.max = SAMPLING_STEPS;
-        this.WEIGHT_SETTINGS.stop.default = SAMPLING_STEPS;
+        this.WEIGHT_SETTINGS.start.max = sampling_steps;
+        this.WEIGHT_SETTINGS.stop.max = sampling_steps;
+        this.WEIGHT_SETTINGS.stop.default = sampling_steps;
 
         const lbwPreset = gradioApp().getElementById("lbw_ratiospreset").querySelector("textarea");
         let lbwPresetValue = lbwPreset.value;
@@ -399,12 +407,10 @@ class WeightHelper {
             }
         }
 
-        weight_helper_history[this.nameHash].forEach(history => {
-            this.currentHistory.push(new WeightData(history));
-        });
-        weight_helper_bookmark[this.nameHash].forEach(bookmark => {
-            this.currentBookmarks.add(new WeightData(bookmark));
-        });
+        if (!weight_helper_history[this.nameHash]) {
+            weight_helper_history[this.nameHash] = [];
+        }
+        this.currentHistory = weight_helper_history[this.nameHash];
         if (this.currentHistory.length == 0) {
             this.currentHistory.push(this.weightData.clone());
         } else {
@@ -413,6 +419,12 @@ class WeightHelper {
                 this.currentHistory.push(this.weightData.clone());
             }
         }
+        if (!weight_helper_bookmark[this.nameHash]) {
+            weight_helper_bookmark[this.nameHash] = [];
+        }
+        weight_helper_bookmark[this.nameHash].forEach(bookmark => {
+            this.currentBookmarkSet.add(bookmark);
+        });
         this.historyIndex = this.currentHistory.length - 1;
     }
 
@@ -432,21 +444,24 @@ class WeightHelper {
         header.appendChild(headerTitle);
 
         this.domBookmarkIcon = document.createElement('span');
-        const isBookmarked = this.currentBookmarks.has(this.weightData);
-        this.domBookmarkIcon.classList.add("bookmark", isBookmarked ? "like" : "unlike");
+        const isBookmarked = this.currentBookmarkSet.has(this.weightData);
+        this.domBookmarkIcon.className = `bookmark ${isBookmarked ? "like" : "unlike"}`;
+        if (this.weightData.isSpecial()) {
+            this.domBookmarkIcon.style.visibility = "hidden";
+        }
         headerTitle.prepend(this.domBookmarkIcon);
         this.domBookmarkIcon.addEventListener("click", () => {
-            const isBookmarked = this.currentBookmarks.has(this.weightData);
+            const isBookmarked = this.currentBookmarkSet.has(this.weightData);
 
             this.#updateBookmarkedIcon(!isBookmarked);
             if (isBookmarked) {
-                this.currentBookmarks.delete(this.weightData);
+                this.currentBookmarkSet.delete(this.weightData);
             } else {
                 const weightDataClone = this.weightData.clone();
                 if (weightDataClone.stop[0] == this.WEIGHT_SETTINGS.stop.default) {
                     weightDataClone.stop[0] = null;
                 }
-                this.currentBookmarks.add(weightDataClone);
+                this.currentBookmarkSet.add(weightDataClone);
             }
         });
 
@@ -650,15 +665,15 @@ class WeightHelper {
         this.domPresetSelect.addEventListener("change", (e) => {
             const selectVal = e.target.value;
             const isSpecial = WeightHelper.SPECIAL_PRESETS.includes(selectVal);
-            if (!isSpecial) {
-                this.weightData.special = "";
-                this.domLbwGroupWrapper.style.display = "flex";
-            } else {
+            if (isSpecial) {
                 this.weightData.special = selectVal;
                 this.domLbwGroupWrapper.style.display = "none";
-            }
+                this.domBookmarkIcon.style.visibility = "hidden";
+            } else {
+                this.weightData.special = "";
+                this.domLbwGroupWrapper.style.display = "flex";
+                this.domBookmarkIcon.style.visibility = "";
 
-            if (!isSpecial) {
                 const lbwWeightSetting = this.LBW_WEIGHT_SETTINGS[this.weightTag][this.weightType];
                 const enableBlocks = lbwWeightSetting.enable_blocks;
                 let values;
@@ -684,10 +699,10 @@ class WeightHelper {
                     this.weightUIs[group].slider[idx].value = val;
                     this.weightUIs[group].updown[idx].value = val / 100;
                 }
-            }
 
-            const isBookmarked = this.currentBookmarks.has(this.weightData);
-            this.#updateBookmarkedIcon(isBookmarked);
+                const isBookmarked = this.currentBookmarkSet.has(this.weightData);
+                this.#updateBookmarkedIcon(isBookmarked);
+            }
 
             if (!this.usingExecCommand) {
                 const updatedText = this.#getUpdatedText();
@@ -824,7 +839,7 @@ class WeightHelper {
             useCheck.addEventListener("change", (e) => {
                 this.weightData[`use_${group}`] = e.target.checked;
 
-                const isBookmarked = this.currentBookmarks.has(this.weightData);
+                const isBookmarked = this.currentBookmarkSet.has(this.weightData);
                 this.#updateBookmarkedIcon(isBookmarked);
 
                 if (!this.usingExecCommand) {
@@ -869,7 +884,7 @@ class WeightHelper {
                 }
             }
 
-            const isBookmarked = this.currentBookmarks.has(this.weightData);
+            const isBookmarked = this.currentBookmarkSet.has(this.weightData);
             this.#updateBookmarkedIcon(isBookmarked);
 
             if (!this.usingExecCommand) {
@@ -895,7 +910,13 @@ class WeightHelper {
 
     #restoreFromHistory() {
         this.domPageLabel.textContent = (this.historyIndex + 1) + "/" + this.currentHistory.length;
-        this.weightData = structuredClone(this.currentHistory[this.historyIndex]);
+        this.weightData = this.currentHistory[this.historyIndex].clone();
+
+        if (this.weightData.isSpecial()) {
+            this.domBookmarkIcon.style.visibility = "hidden";
+        } else {
+            this.domBookmarkIcon.style.visibility = "";
+        }
 
         Object.keys(this.weightData).map(key => {
             if (["VERSION"].includes(key)) {
@@ -955,7 +976,7 @@ class WeightHelper {
             this.#update(updatedText);
         }
 
-        const isBookmarked = this.currentBookmarks.has(this.weightData);
+        const isBookmarked = this.currentBookmarkSet.has(this.weightData);
         this.#updateBookmarkedIcon(isBookmarked);
     }
 
@@ -1260,24 +1281,35 @@ async function getTab(tabName) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    weight_helper_type = JSON.parse(localStorage.getItem("weight_helper_type"));
+    weight_helper_history = {};
+    weight_helper_bookmark = {};
+    const historyTemp = JSON.parse(localStorage.getItem("weight_helper"));
+    if (historyTemp) {
+        const weightSet = new WeightSet();
+        Object.keys(historyTemp).forEach(nameHash => {
+            weight_helper_history[nameHash] = [];
+            weight_helper_bookmark[nameHash] = [];
+            weightSet.clear();
+            historyTemp[nameHash].filter(v => v.VERSION === VERSION && !v.special).forEach(v => {
+                const weightData = new WeightData(v);
+                if (!weightSet.has(weightData)) {
+                    weight_helper_history[nameHash].push(weightData);
+                    weight_helper_bookmark[nameHash].push(weightData);
+                    weightSet.add(weightData);
+                }
+            });
+        });
+    }
+
     (async() => {
         const tabId = "txt2img";
         init(await getTab(tabId), tabId);
     })();
 });
 
-function hashCode(s) {
-    let hash = 0;
-    if (s.length === 0) return hash;
-    for (let i = 0; i < s.length; i++) {
-        const char = s.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32bit integer
-    }
-    return hash;
-}
-
 function init(_, tabId) {
+
     let textColor = getComputedStyle(document.documentElement).getPropertyValue('--body-text-color').trim();
     let textColorRgb = textColor.slice(1).match(/.{1,2}/g).map(hex => parseInt(hex, 16));
     let textColorRgba = [...textColorRgb, 0.3];
