@@ -12,6 +12,105 @@ if (weight_helper_history) {
 var weight_helper_bookmark = structuredClone(weight_helper_history);
 var weight_helper_type = JSON.parse(localStorage.getItem("weight_helper_type"));
 
+var SAMPLING_STEPS;
+
+class WeightSet {
+    map;
+    constructor() {
+        this.map = new Map();
+    }
+    add(weightData) {
+        return this.map.set(weightData.hashCode(), weightData);
+    }
+    has(weightData) {
+        return this.map.has(weightData.hashCode());
+    }
+    delete(weightData) {
+        return this.map.delete(weightData.hashCode());
+    }
+}
+
+class WeightData {
+    VERSION;
+    te;
+    use_unet;
+    unet;
+    use_dyn;
+    dyn;
+    start;
+    stop;
+    lbw;
+    lbwe;
+    special;
+
+    constructor(data) {
+        if (data) {
+            Object.assign(this, data);
+        }
+    }
+
+    clone() {
+        return new WeightData(structuredClone(this));
+    }
+
+    equals(other) {
+        if (other == null) {
+            return false;
+        }
+        if (this.te[0] !== other.te[0]) {
+            return false;
+        }
+        if (this.use_unet !== other.use_unet) {
+            return false;
+        }
+        if (this.use_unet && (this.unet[0] != other.unet[0])) {
+            return false;
+        }
+        if (this.use_dyn !== other.use_dyn) {
+            return false;
+        }
+        if (this.use_dyn && (this.dyn[0] != other.dyn[0])) {
+            return false;
+        }
+        if (this.start[0] !== other.start[0]) {
+            return false;
+        }
+        let stop1 = this.stop[0] == null ? SAMPLING_STEPS : this.stop[0];
+        let stop2 = other.stop[0] == null ? SAMPLING_STEPS : other.stop[0];
+        if (stop1 !== stop2) {
+            return false;
+        }
+        if (this.lbw.length !== other.lbw.length) {
+            return false;
+        }
+        for (let i = 0; i < this.lbw.length; i++) {
+            if (this.lbw[i] !== other.lbw[i]) {
+                return false;
+            }
+        }
+        if (this.special !== other.special) {
+            return false;
+        }
+        return true;
+    }
+
+    hashCode() {
+        let hash = 17;
+        hash = 31 * hash + (this.te[0]);
+        hash = 31 * hash + (this.use_unet ? 1 : 0);
+        hash = 31 * hash + (this.use_unet ? this.unet[0] : 0);
+        hash = 31 * hash + (this.use_dyn ? 1 : 0);
+        hash = 31 * hash + (this.use_dyn ? this.dyn[0] : 0);
+        hash = 31 * hash + (this.start[0]);
+        hash = 31 * hash + (this.stop[0] == null ? SAMPLING_STEPS : this.stop[0]);
+        for (let i = 0; i < this.lbw.length; i++) {
+            hash = 31 * hash + this.lbw[i];
+        }
+        hash = 31 * hash + hashCode(this.special);
+        return hash;
+    }
+}
+
 class WeightHelper {
 
     static REGEX = /<([^:]+):([^:]+):([^>]+)>/;
@@ -107,8 +206,9 @@ class WeightHelper {
     weightType = "";
     name = null;
     nameHash = null;
-    currentHistory = null;
-    currentBookmarks = null;
+    currentHistory = [];
+    currentBookmarks = new WeightSet();
+    weightData = new WeightData();
 
     lastSelectionStart = null;
     lastSelectionEnd = null;
@@ -134,6 +234,9 @@ class WeightHelper {
         this.weightTag = type;
         this.name = name;
         this.nameHash = hashCode(name);
+
+        const samplingSteps = gradioApp().getElementById(`${this.tabId}_steps`).querySelector("input");
+        SAMPLING_STEPS = parseInt(samplingSteps.value) * 100;
 
         if (!(this.nameHash in weight_helper_history)) {
             weight_helper_history[this.nameHash] = [];
@@ -176,67 +279,14 @@ class WeightHelper {
         }
     }
 
-    #areWeightDataEqual(orgWeight1, orgWeight2) {
-        if (orgWeight1 == null || orgWeight2 == null) {
-            return false;
-        }
-        const clean = (weight) => {
-            delete weight.VERSION;
-            if (!weight.use_unet) {
-                weight.unet = undefined;
-            }
-            if (!weight.use_dyn) {
-                weight.dyn = undefined;
-            }
-            if (weight.stop[0] == this.WEIGHT_SETTINGS.stop.default) {
-                weight.stop[0] = null;
-            }
-            return weight;
-        }
-        const weight1 = clean(structuredClone(orgWeight1));
-        const weight2 = clean(structuredClone(orgWeight2));
-
-        const keys1 = Object.keys(weight1);
-        const keys2 = Object.keys(weight2);
-        if (keys1.length !== keys2.length) {
-            return false;
-        }
-        if (weight1.lbw.length !== weight2.lbw.length) {
-            return false;
-        }
-
-        return keys1.every(key => {
-            if (weight1[key] == null || weight2[key] == null) {
-                if (weight1[key] != null || weight2[key] != null) {
-                    return false;
-                }
-                return true;
-            }
-            if (key === "lbw") {
-                for (let i = 0; i < weight1.lbw.length; i++) {
-                    if (weight1.lbw[i] !== weight2.lbw[i]) {
-                        return false;
-                    }
-                }
-                return true;
-            } else {
-                return weight1[key][0] === weight2[key][0];
-            }
-        });
-    }
-
     #init(allWeights) {
         if (!weight_helper_type) {
             weight_helper_type = {};
         }
 
-        const samplingSteps = gradioApp().getElementById(`${this.tabId}_steps`).querySelector("input");
-        if (samplingSteps) {
-            const samplingStepsValue = parseInt(samplingSteps.value) * 100;
-            this.WEIGHT_SETTINGS.start.max = samplingStepsValue;
-            this.WEIGHT_SETTINGS.stop.max = samplingStepsValue;
-            this.WEIGHT_SETTINGS.stop.default = samplingStepsValue;
-        }
+        this.WEIGHT_SETTINGS.start.max = SAMPLING_STEPS;
+        this.WEIGHT_SETTINGS.stop.max = SAMPLING_STEPS;
+        this.WEIGHT_SETTINGS.stop.default = SAMPLING_STEPS;
 
         const lbwPreset = gradioApp().getElementById("lbw_ratiospreset").querySelector("textarea");
         let lbwPresetValue = lbwPreset.value;
@@ -349,14 +399,18 @@ class WeightHelper {
             }
         }
 
-        this.currentHistory = weight_helper_history[this.nameHash];
-        this.currentBookmarks = weight_helper_bookmark[this.nameHash];
+        weight_helper_history[this.nameHash].forEach(history => {
+            this.currentHistory.push(new WeightData(history));
+        });
+        weight_helper_bookmark[this.nameHash].forEach(bookmark => {
+            this.currentBookmarks.add(new WeightData(bookmark));
+        });
         if (this.currentHistory.length == 0) {
-            this.currentHistory.push(structuredClone(this.weightData));
+            this.currentHistory.push(this.weightData.clone());
         } else {
             const historyLen = this.currentHistory.length;
-            if (!this.#areWeightDataEqual(this.currentHistory[historyLen - 1], this.weightData)) {
-                this.currentHistory.push(structuredClone(this.weightData));
+            if (!this.weightData.equals(this.currentHistory[historyLen - 1])) {
+                this.currentHistory.push(this.weightData.clone());
             }
         }
         this.historyIndex = this.currentHistory.length - 1;
@@ -378,35 +432,35 @@ class WeightHelper {
         header.appendChild(headerTitle);
 
         this.domBookmarkIcon = document.createElement('span');
-        this.domBookmarkIcon.classList.add("bookmark", this.#getBookmarkIndex() != null ? "like" : "unlike");
+        const isBookmarked = this.currentBookmarks.has(this.weightData);
+        this.domBookmarkIcon.classList.add("bookmark", isBookmarked ? "like" : "unlike");
         headerTitle.prepend(this.domBookmarkIcon);
         this.domBookmarkIcon.addEventListener("click", () => {
-            const bookmarkIndex = this.#getBookmarkIndex();
-            const isBookmarked = bookmarkIndex != null;
+            const isBookmarked = this.currentBookmarks.has(this.weightData);
 
             this.#updateBookmarkedIcon(!isBookmarked);
             if (isBookmarked) {
-                this.currentBookmarks.splice(bookmarkIndex, 1);
+                this.currentBookmarks.delete(this.weightData);
             } else {
-                const weightDataClone = structuredClone(this.weightData);
+                const weightDataClone = this.weightData.clone();
                 if (weightDataClone.stop[0] == this.WEIGHT_SETTINGS.stop.default) {
                     weightDataClone.stop[0] = null;
                 }
-                this.currentBookmarks.push(weightDataClone);
+                this.currentBookmarks.add(weightDataClone);
             }
         });
 
         const headerLabel = document.createElement('label');
-        headerLabel.classList.add("name")
+        headerLabel.className = "name";
         headerLabel.textContent = this.name;
         headerTitle.appendChild(headerLabel);
 
         const history = document.createElement('div');
-        history.classList.add("history");
+        history.className = "history";
         header.appendChild(history);
 
         const pageWrapper = document.createElement('div');
-        pageWrapper.classList.add("page");
+        pageWrapper.className = "page";
         history.appendChild(pageWrapper);
 
         this.domPageLabel = document.createElement('label');
@@ -414,7 +468,7 @@ class WeightHelper {
 
         const pageLeft = document.createElement('a');
         pageLeft.textContent = "<";
-        pageLeft.classList.add("icon");
+        pageLeft.className = "icon";
         pageWrapper.appendChild(pageLeft);
         pageLeft.addEventListener("click", () => {
             if (this.historyIndex <= 0) {
@@ -428,7 +482,7 @@ class WeightHelper {
 
         const pageRight = document.createElement('a');
         pageRight.textContent = ">";
-        pageRight.classList.add("icon");
+        pageRight.className = "icon";
         pageWrapper.appendChild(pageRight);
         pageRight.addEventListener("click", () => {
             if (this.historyIndex >= this.currentHistory.length - 1) {
@@ -480,7 +534,7 @@ class WeightHelper {
             this.weightUIs[group] = {slider: [], updown: []};
 
             const section = document.createElement('section');
-            section.classList.add("border");
+            section.className = "border";
 
             const labelContainer = document.createElement("span");
             const label = document.createElement('label');
@@ -506,7 +560,7 @@ class WeightHelper {
 
         if (hiddenExtraOpts > 0) {
             const extraButton = document.createElement('button');
-            extraButton.classList.add("secondary", "gradio-button");
+            extraButton.className = "secondary gradio-button";
             extraButton.id = "weight-helper-show-extra-opt-button";
             extraButton.textContent = "show extra options";
             extraButton.addEventListener("click", (e) => {
@@ -524,18 +578,18 @@ class WeightHelper {
         this.weightUIs[group] = {slider: [], updown: [], dom: []};
 
         const lbwSection = document.createElement('section');
-        lbwSection.classList.add("border");
+        lbwSection.className = "border";
 
         const label = document.createElement('label');
         label.textContent = group.toUpperCase();
         lbwSection.appendChild(label);
 
         const lbwSet = document.createElement('div');
-        lbwSet.classList.add('f', 'col', 'g-4', 'w-fill');
+        lbwSet.className = 'f col g-4 w-fill';
         lbwSection.appendChild(lbwSet);
 
         const typeRow = document.createElement("div");
-        typeRow.classList.add("f", "g-2", "f-end");
+        typeRow.className = "f g-2 f-end";
 
         const lbwTagSelect = document.createElement("select");
         lbwTagSelect.style.flexGrow = 1;
@@ -557,10 +611,10 @@ class WeightHelper {
         typeRow.appendChild(lbwTagSelect);
 
         const typeTypeRow = document.createElement("div");
-        typeTypeRow.classList.add("border", "f", "g-2", "f-end");
+        typeTypeRow.className = "border f g-2 f-end";
 
         const typeType = document.createElement("div");
-        typeType.classList.add("f", "g-2", "f-end");
+        typeType.className = "f g-2 f-end";
         for (const weightType of this.LBW_WEIGHT_TYPES) {
             const radioId = "weight-helper-detail_" + weightType.type;
             const weightTypeRadio = document.createElement("input");
@@ -580,7 +634,7 @@ class WeightHelper {
             typeType.appendChild(weightTypeRadio);
 
             const weightTypeLabel = document.createElement("label");
-            weightTypeLabel.classList.add("radio-label");
+            weightTypeLabel.className = "radio-label";
             weightTypeLabel.textContent = weightType.label;
             weightTypeLabel.htmlFor = radioId;
             typeType.appendChild(weightTypeLabel);
@@ -632,8 +686,7 @@ class WeightHelper {
                 }
             }
 
-            const bookmarkIndex = this.#getBookmarkIndex();
-            const isBookmarked = bookmarkIndex != null;
+            const isBookmarked = this.currentBookmarks.has(this.weightData);
             this.#updateBookmarkedIcon(isBookmarked);
 
             if (!this.usingExecCommand) {
@@ -644,8 +697,8 @@ class WeightHelper {
 
         for (let idx = 0; idx < this.weightData[group].length; idx++) {
             let lbwUnit = document.createElement('div');
-            lbwUnit.classList.add('lbw-unit', `lbw-u-${idx}`);
-            lbwUnit.classList.add('f', 'g-2');
+            lbwUnit.className = `lbw-unit lbw-u-${idx}`;
+            lbwUnit.className = 'f g-2';
 
             const label = document.createElement('label');
             label.textContent = this.WEIGHT_SETTINGS[group].labels[idx];
@@ -656,7 +709,7 @@ class WeightHelper {
         }
 
         this.domLbwGroupWrapper = document.createElement('div');
-        this.domLbwGroupWrapper.classList.add('lbw-group-wrapper', 'f', 'col', 'g-2');
+        this.domLbwGroupWrapper.className = 'lbw-group-wrapper f col g-2';
         if (!this.weightData.special) {
             this.domLbwGroupWrapper.style.display = "flex";
         } else {
@@ -711,7 +764,7 @@ class WeightHelper {
                 pointEnd = labelMap[points[1]];
             }
             const lbwGroup = document.createElement('div');
-            lbwGroup.classList.add('border', 'f', 'g-2', 'col');
+            lbwGroup.className = 'border f g-2 col';
             for (let idx = pointStart; idx <= pointEnd; idx++) {
                 if (lbwWeightSetting.enable_blocks[idx] == 1) {
                     lbwGroup.appendChild(this.weightUIs.lbw.dom[idx]);
@@ -736,7 +789,7 @@ class WeightHelper {
         const max = this.WEIGHT_SETTINGS[group].max;
         const step = this.WEIGHT_SETTINGS[group].step;
         const slider = document.createElement('input');
-        slider.classList.add('slider');
+        slider.className = 'slider';
         slider.type = 'range';
         if (group == "start" || group == "stop") {
             slider.min = min;
@@ -754,7 +807,7 @@ class WeightHelper {
         const value = this.weightData[group][i];
         const step = this.WEIGHT_SETTINGS[group].step;
         const valueText = document.createElement('input');
-        valueText.classList.add('value');
+        valueText.className = 'value';
         valueText.type = "number";
         valueText.step = parseFloat(step) / 100;
         valueText.value = value / 100;
@@ -763,7 +816,7 @@ class WeightHelper {
 
     #makeSliderComponent(labelContainer, lbwPresetSelect, group, i) {
         const sliderContainer = document.createElement('div');
-        sliderContainer.classList.add('f', 'f-c', 'g-4');
+        sliderContainer.className = 'f f-c g-4';
 
         if (labelContainer && this.WEIGHT_SETTINGS[group].default === undefined) {
             const unetVal = this.weightData[group][i];
@@ -771,8 +824,7 @@ class WeightHelper {
             useCheck.addEventListener("change", (e) => {
                 this.weightData[`use_${group}`] = e.target.checked;
 
-                const bookmarkIndex = this.#getBookmarkIndex();
-                const isBookmarked = bookmarkIndex != null;
+                const isBookmarked = this.currentBookmarks.has(this.weightData);
                 this.#updateBookmarkedIcon(isBookmarked);
 
                 if (!this.usingExecCommand) {
@@ -817,8 +869,7 @@ class WeightHelper {
                 }
             }
 
-            const bookmarkIndex = this.#getBookmarkIndex();
-            const isBookmarked = bookmarkIndex != null;
+            const isBookmarked = this.currentBookmarks.has(this.weightData);
             this.#updateBookmarkedIcon(isBookmarked);
 
             if (!this.usingExecCommand) {
@@ -904,26 +955,15 @@ class WeightHelper {
             this.#update(updatedText);
         }
 
-        this.#updateBookmarkedIcon(this.#getBookmarkIndex() != null);
-    }
-
-    #getBookmarkIndex() {
-        for (let i = 0; i < this.currentBookmarks.length; i++) {
-            const bookmark = this.currentBookmarks[i];
-            if (this.#areWeightDataEqual(bookmark, this.weightData)) {
-                return i;
-            }
-        }
-        return null;
+        const isBookmarked = this.currentBookmarks.has(this.weightData);
+        this.#updateBookmarkedIcon(isBookmarked);
     }
 
     #updateBookmarkedIcon(isBookmarked) {
-        const clsList = this.domBookmarkIcon.classList;
-        clsList.remove(clsList.item(1));
         if (isBookmarked) {
-            clsList.add("like");
+            this.domBookmarkIcon.className = "bookmark like";
         } else {
-            clsList.add("unlike");
+            this.domBookmarkIcon.className = "bookmark unlike";
         }
     }
 
@@ -1035,7 +1075,7 @@ class WeightHelper {
         let lastWeightData = this.currentHistory.at(-1);
         let historyChanged = false;
         if (this.historyIndex == historyLen - 1) {
-            historyChanged = !this.#areWeightDataEqual(lastWeightData, this.weightData);
+            historyChanged = !this.weightData.equals(lastWeightData);
             if (historyChanged) {
                 this.currentHistory.push(this.weightData);
             }
@@ -1057,44 +1097,44 @@ class WeightHelper {
         const modelId = res[3];
         if (previewPath) {
             const pane = document.createElement("div");
-            pane.classList.add("preview-pane");
+            pane.className = "preview-pane";
 
             const img = document.createElement("img");
-            img.classList.add("preview");
+            img.className = "preview";
             img.setAttribute("src", previewPath);
             pane.appendChild(img);
 
             const buttonTop = document.createElement("div");
-            buttonTop.classList.add("action-row", "button-top");
+            buttonTop.className = "action-row button-top";
             pane.appendChild(buttonTop);
 
             if (modelId) {
                 const civitaiButton = document.createElement("div");
-                civitaiButton.classList.add("civitai-btn", "card-btn");
+                civitaiButton.className = "civitai-btn card-btn";
                 civitaiButton.setAttribute("title", "Open civitai");
                 civitaiButton.addEventListener("click", () => window.open(`https://civitai.com/models/${modelId}`, '_blank'));
                 buttonTop.appendChild(civitaiButton);
             }
 
             const metadataButton = document.createElement("div");
-            metadataButton.classList.add("metadata-btn", "card-btn");
+            metadataButton.className = "metadata-btn card-btn";
             metadataButton.setAttribute("title", "Show internal metadata");
             metadataButton.addEventListener("click", (event) => extraNetworksRequestMetadata(event, 'lora', loraName));
             buttonTop.appendChild(metadataButton);
 
             const editButton = document.createElement("div");
-            editButton.classList.add("edit-btn", "card-btn");
+            editButton.className = "edit-btn card-btn";
             editButton.setAttribute("title", "Edit metadata");
             editButton.addEventListener("click", (event) => extraNetworksEditUserMetadata(event, this.tabId, 'lora', loraName));
             buttonTop.appendChild(editButton);
 
             if (description) {
                 const buttonBottom = document.createElement("div");
-                buttonBottom.classList.add("action-row", "button-bottom");
+                buttonBottom.className = "action-row button-bottom";
                 pane.appendChild(buttonBottom);
 
                 const actNote = document.createElement("div");
-                actNote.classList.add("card-btn", "note-btn");
+                actNote.className = "card-btn note-btn";
                 actNote.addEventListener("click", () => {
                     buttonTop.style.visibility = "hidden";
                     buttonBottom.style.visibility = "hidden";
@@ -1104,12 +1144,12 @@ class WeightHelper {
                 buttonBottom.appendChild(actNote);
 
                 const actDesc = document.createElement("textarea");
-                actDesc.classList.add("description");
+                actDesc.className = "description";
                 actDesc.textContent = description;
                 pane.appendChild(actDesc);
 
                 const actDescClose = document.createElement("div");
-                actDescClose.classList.add("card-btn", "description-close-btn");
+                actDescClose.className = "card-btn description-close-btn";
                 actDescClose.addEventListener("click", () => {
                     buttonTop.style.visibility = "";
                     buttonBottom.style.visibility = "";
@@ -1225,6 +1265,17 @@ document.addEventListener('DOMContentLoaded', function() {
         init(await getTab(tabId), tabId);
     })();
 });
+
+function hashCode(s) {
+    let hash = 0;
+    if (s.length === 0) return hash;
+    for (let i = 0; i < s.length; i++) {
+        const char = s.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return hash;
+}
 
 function init(_, tabId) {
     let textColor = getComputedStyle(document.documentElement).getPropertyValue('--body-text-color').trim();
