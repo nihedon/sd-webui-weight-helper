@@ -193,7 +193,7 @@ class WeightHelper {
             },
             "sdxl": {
                 enable_blocks: [1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0],
-                block_points: ["BASE", "IN00-IN03", "IN04-IN08", "M00", "OUT00-OUT03", "OUT04-OUT8"]
+                block_points: ["BASE", "IN00-IN03", "IN04-IN08", "M00", "OUT00-OUT03", "OUT04-OUT08"]
             },
             "all": {
                 enable_blocks: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
@@ -255,14 +255,16 @@ class WeightHelper {
             weight_helper_bookmark[this.nameHash] = [];
         }
 
-        const optBlockPattern = /((BASE|MID|M00|(IN|OUT)[0-9]{2}(-(IN|OUT)[0-9]{2})?) *(, *|$))+/;
+        const optBlockPattern = /((BASE|MID|M00|(IN|OUT)[0-9]{1,2}(-(IN|OUT)[0-9]{1,2})?) *(, *|$))+/;
         for (let weightTag of this.LBW_WEIGHT_TAGS) {
             for (let weightType of this.LBW_WEIGHT_TYPES) {
                 try {
                     let optBlockPoints = opts[`weight_helper_lbw_${weightTag.type}_${weightType.type}_block_points`]
                     optBlockPoints = optBlockPoints.replace("MID", "M00");
                     if (optBlockPattern.exec(optBlockPoints)) {
-                        const blockPoints = optBlockPoints.split(',').map((v) => v.trim());
+                        const blockPoints = optBlockPoints.split(',').map(v => {
+                            return v.trim().replace(/\d+/g, match => match.length === 1 ? `0${match}` : match);
+                        });
                         this.LBW_WEIGHT_SETTINGS[weightTag.type][weightType.type].block_points = blockPoints;
                     }
                 } catch (e) {
