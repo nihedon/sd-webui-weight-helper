@@ -1,4 +1,3 @@
-<br><br>
 <img src="https://github.com/nihedon/sd-webui-weight-helper/assets/66118290/f7079e1c-3b2a-426c-b3a2-1a7ccf57cab2" height="600px">
 
 # Weight Helper Extension
@@ -23,7 +22,11 @@ https://github.com/nihedon/sd-webui-weight-helper.git
 1. Right-click on a Lora or Lyco tag to open the context menu.
    - `<lora:lora_name:1.0>`
    - `<lyco:lyco_name:1.0>`
-2. Move the weight slider to adjust the magnification of each weight block.
+2. Choose "LoRA" or "LyCORIS" according to the tag, and select "SDXL" if it's for the SDXL version.
+3. Move the weight slider to adjust the magnification of each weight block.
+4. UNet, Dyn, Start, and Stop will be hidden by default, but if configured, you can display them by pressing the "show extra options" button.
+5. Save your favorite weight settings by clicking the "★" icon at the top left of the context menu.
+   Important: Saved settings are stored in LocalStorage, but any unsaved history will be deleted upon refreshing the screen.
 
 ## Features
 
@@ -37,6 +40,8 @@ https://github.com/nihedon/sd-webui-weight-helper.git
 - Display of UNet, Dyn, Start, and Stop sliders.
 - Setting of minimum, maximum, and step values for each weight slider.
 - Detailed settings for LBW's Lora and Lyco blocks.
+- Option to display or hide previews, and settings for preview size and position.
+- Settings for block weight segmentation.
 
 ## Guaranteed Operating Environment
 

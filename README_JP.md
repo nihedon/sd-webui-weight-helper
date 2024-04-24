@@ -1,4 +1,3 @@
-<br><br>
 <img src="https://github.com/nihedon/sd-webui-weight-helper/assets/66118290/f7079e1c-3b2a-426c-b3a2-1a7ccf57cab2" height="600px">
 
 # Weight Helper 拡張機能
@@ -23,7 +22,11 @@ https://github.com/nihedon/sd-webui-weight-helper.git
 1. LoraまたはLycoのタグを右クリックしてコンテキストメニューを開く
    - `<lora:lora_name:1.0>`
    - `<lyco:lyco_name:1.0>`
-2. ウェイトスライダーを動かして各ウェイトブロックの倍率を調整
+2. LoRA（またはLyCORIS）に合わせて"LoRA"か"LyCORIS"を選択し、SDXLバージョンの場合は"SDXL"を選択します。
+3. ウェイトスライダーを動かして各ウェイトブロックの倍率を調整します。
+4. UNet、Dyn、Start、Stopは非表示となっているため、設定した場合は"show extra options"ボタンを押下して表示できます。
+5. お気に入りのウェイト設定はコンテキストメニュー左上の"★"アイコンをクリックし保存します。
+   重要：保存した場合はLocalStrageに保存されますが、保存していない履歴は画面更新時にすべて削除されます。
 
 ## 特徴
 
@@ -37,6 +40,8 @@ https://github.com/nihedon/sd-webui-weight-helper.git
 - UNet、Dyn、Start、およびStopスライダーの表示
 - 各ウェイトスライダーの最小値、最大値、ステップ数の設定
 - LBWのLoraおよびLycoブロックの詳細設定
+- プレビューの表示有無、表示サイズと表示位置の設定
+- ブロックウェイトの区切り設定
 
 ## 動作保証環境
 
