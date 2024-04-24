@@ -206,6 +206,7 @@ class WeightHelper {
 
     usingExecCommand = false;
 
+    tabId = null;
     offsetX = 0;
     offsetY = 0;
     isDragging = false;
@@ -1081,7 +1082,7 @@ class WeightHelper {
         }
     }
 
-    #trySave() {
+    #doSave() {
         if (!this.weightType) {
             delete weight_helper_type[this.nameHash];
         } else {
@@ -1232,7 +1233,7 @@ class WeightHelper {
         if (e && this.domCustomContextMenu.contains(e.target)) return;
         if (!e || (e.target.id !== "weight-helper-show-extra-opt-button"
                 && e.target.id !== `${this.tabId}_lora_edit_user_metadata_button`
-                && e.className !== "global-popup-close")) {
+                && e.target.className !== "global-popup-close")) {
             WeightHelper.last_instance = undefined;
             if (e != null && e.target.id.indexOf("_interrupt") > 0) {
                 document.body.removeChild(this.domCustomContextMenu);
@@ -1249,7 +1250,7 @@ class WeightHelper {
                     this.#updateWithExecCommand(updatedText);
                 }
             }
-            this.#trySave();
+            this.#doSave();
             document.body.removeChild(this.domCustomContextMenu);
             document.body.removeEventListener("click", this.close);
         }
