@@ -128,13 +128,15 @@ class WeightHelper {
         this.name = name;
         this.nameHash = this.#hashCode(name);
 
-        const optBlockPattern = /((BASE|MID|(IN|OUT)[0-9]{2}(-(IN|OUT)[0-9]{2})?) *(, *|$))+/;
+        const optBlockPattern = /((BASE|MID|(IN|OUT)[0-9]{1,2}(-(IN|OUT)[0-9]{1,2})?) *(, *|$))+/;
         for (let weightTag of this.LBW_WEIGHT_TAGS) {
             for (let weightType of this.LBW_WEIGHT_TYPES) {
                 try {
                     const optBlockPoints = opts[`weight_helper_lbw_${weightTag.type}_${weightType.type}_block_points`]
                     if (optBlockPattern.exec(optBlockPoints)) {
-                        const blockPoints = optBlockPoints.split(',').map((v) => v.trim());
+                        const blockPoints = optBlockPoints.split(',').map(v => {
+                            return v.trim().replace(/\d+/g, match => match.length === 1 ? `0${match}` : match);
+                        });
                         this.LBW_WEIGHT_SETTINGS[weightTag.type][weightType.type].block_points = blockPoints;
                     }
                 } catch (e) {
