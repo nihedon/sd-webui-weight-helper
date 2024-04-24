@@ -106,10 +106,10 @@ def on_ui_settings():
             "default: BASE, IN00-IN05, IN06-IN11, MID, OUT00-OUT05, OUT06-OUT11"
         ),
         "weight_helper_lbw_lyco_sdxl_block_points": shared.OptionInfo(
-            "BASE, IN00-IN03, IN04-IN08, MID, OUT00-OUT03, OUT04-OUT8",
+            "BASE, IN00-IN03, IN04-IN08, MID, OUT00-OUT03, OUT04-OUT08",
             "Advanced option - LyCORIS(SDXL) block points"
         ).info(
-            "default: BASE, IN00-IN03, IN04-IN08, MID, OUT00-OUT03, OUT04-OUT8"
+            "default: BASE, IN00-IN03, IN04-IN08, MID, OUT00-OUT03, OUT04-OUT08"
         ),
         "weight_helper_lbw_lyco_all_block_points": shared.OptionInfo(
             "BASE, IN00-IN05, IN06-IN11, MID, OUT00-OUT05, OUT06-OUT11",
