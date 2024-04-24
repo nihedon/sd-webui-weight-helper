@@ -898,12 +898,11 @@ class WeightHelper {
         if (e && this.customContextMenu.contains(e.target)) {
             return;
         }
-        if (this.customContextMenu.parentNode === document.body &&
-                (!e || e.target.id != "weight-helper-show-extra-opt-button")) {
+        if (!e || e.target.id !== "weight-helper-show-extra-opt-button") {
             WeightHelper.last_instance = undefined;
             if (e != null && e.target.id.indexOf("_interrupt") > 0) {
                 document.body.removeChild(this.customContextMenu);
-                window.removeEventListener("click", this.close);
+                document.body.removeEventListener("click", this.close);
                 return;
             }
 
@@ -944,7 +943,7 @@ class WeightHelper {
                 }
             }
             document.body.removeChild(this.customContextMenu);
-            window.removeEventListener("click", this.close);
+            document.body.removeEventListener("click", this.close);
         }
     };
 }
