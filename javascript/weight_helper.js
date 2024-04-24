@@ -986,7 +986,7 @@ function init(_, tabId) {
     genButtons.forEach((button) => {
         button.addEventListener('click', function(e) {
             if (WeightHelper.last_instance) {
-                WeightHelper.last_instance();
+                WeightHelper.last_instance.close();
             }
         }, true);
     });
