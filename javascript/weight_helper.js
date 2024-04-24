@@ -74,7 +74,7 @@ class WeightHelper {
             },
             "sdxl": {
                 enable_blocks: [1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0],
-                block_points: ["BASE", "IN00-IN03", "IN04-IN08", "MID", "OUT00-OUT03", "OUT04-OUT8"]
+                block_points: ["BASE", "IN00-IN03", "IN04-IN08", "MID", "OUT00-OUT03", "OUT04-OUT08"]
             },
             "all": {
                 enable_blocks: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
