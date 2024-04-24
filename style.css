@@ -184,8 +184,7 @@
     width: 100%;
     position: absolute;
     height: 30px;
-    backdrop-filter: blur(4px) grayscale(0.5);
-    background-color: rgb(0 0 0 / 25%);
+    background-color: rgb(0 0 0 / 40%);
 }
 #weight-helper .preview-pane .button-top {
     top: 0;
@@ -229,6 +228,9 @@
 #weight-helper .preview-pane .note-btn::after {
     content: "🖹";
 }
+#weight-helper .preview-pane .card-btn::before {
+    text-shadow: 0px 2px 3px black;
+}
 #weight-helper .preview-pane .card-btn::after {
     color: transparent;
     text-shadow: 0 0 0 white;
@@ -243,7 +245,7 @@
     visibility: hidden;
     color: white;
     font-size: 0.9rem;
-    background-color: rgb(0 0 0 / 50%);
+    background-color: rgb(0 0 0 / 70%);
     position: absolute;
     top: 0;
     left: 0;
@@ -257,7 +259,6 @@
     outline: none;
     -ms-overflow-style: none;
     scrollbar-width: none;
-    backdrop-filter: blur(4px) grayscale(0.8);
 }
 #weight-helper .preview-pane .description-close-btn {
     visibility: hidden;
