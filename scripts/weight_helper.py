@@ -50,9 +50,10 @@ class WeightHelperAPI:
             pass
 
         preview = self._find_preview(path)
+        hasMetadata = self._find_metadata(lora)
         description = self._find_description(path)
         modelId = self._find_civitai_model_id(path)
-        return lora.name, preview, description, modelId
+        return lora.name, preview, hasMetadata, description, modelId
 
     def _link_preview(self, filename):
         quoted_filename = urllib.parse.quote(filename.replace('\\', '/'))
@@ -67,6 +68,9 @@ class WeightHelperAPI:
             if self.lister.exists(file):
                 return self._link_preview(file)
         return "./file=html/card-no-preview.png"
+
+    def _find_metadata(self, lora):
+        return len(lora.metadata) > 0
 
     @functools.cache
     def _find_description(self, path):

@@ -229,7 +229,7 @@
     content: "🖹";
 }
 #weight-helper .preview-pane .card-btn::before {
-    text-shadow: 0px 2px 3px black;
+    text-shadow: 0px 3px 2px #000000B0;
 }
 #weight-helper .preview-pane .card-btn::after {
     color: transparent;

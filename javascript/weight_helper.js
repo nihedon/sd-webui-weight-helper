@@ -1122,8 +1122,9 @@ class WeightHelper {
         const res = await postAPI("/whapi/v1/get_lora_info?key=" + encodeURIComponent(this.name), null);
         const loraName = res[0];
         const previewPath = res[1];
-        const description = res[2];
-        const modelId = res[3];
+        const hasMetadata = res[2];
+        const description = res[3];
+        const modelId = res[4];
         if (previewPath) {
             const pane = document.createElement("div");
             pane.className = "preview-pane";
@@ -1145,11 +1146,13 @@ class WeightHelper {
                 buttonTop.appendChild(civitaiButton);
             }
 
-            const metadataButton = document.createElement("div");
-            metadataButton.className = "metadata-btn card-btn";
-            metadataButton.setAttribute("title", "Show internal metadata");
-            metadataButton.addEventListener("click", (event) => extraNetworksRequestMetadata(event, 'lora', loraName));
-            buttonTop.appendChild(metadataButton);
+            if (hasMetadata) {
+                const metadataButton = document.createElement("div");
+                metadataButton.className = "metadata-btn card-btn";
+                metadataButton.setAttribute("title", "Show internal metadata");
+                metadataButton.addEventListener("click", (event) => extraNetworksRequestMetadata(event, 'lora', loraName));
+                buttonTop.appendChild(metadataButton);
+            }
 
             const editButton = document.createElement("div");
             editButton.className = "edit-btn card-btn";
