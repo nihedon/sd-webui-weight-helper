@@ -1,7 +1,7 @@
 'use strict';
 
 const VERSION = "1.2.0"
-localStorage.clear("weight_helper");
+localStorage.removeItem("weight_helper");
 
 var weight_helper_history;
 var weight_helper_bookmark;
@@ -1224,7 +1224,15 @@ class WeightHelper {
             }
         }
         document.body.addEventListener('click', this.close);
+        document.addEventListener('keyup', this.escape);
         WeightHelper.last_instance = this;
+    }
+
+    finally() {
+        WeightHelper.last_instance = undefined;
+        document.body.removeChild(this.domCustomContextMenu);
+        document.body.removeEventListener("click", this.close);
+        document.removeEventListener('keyup', this.escape);
     }
 
     close = (e) => {
@@ -1234,10 +1242,8 @@ class WeightHelper {
         if (!e || (e.target.id !== "weight-helper-show-extra-opt-button"
                 && e.target.id !== `${this.tabId}_lora_edit_user_metadata_button`
                 && e.target.className !== "global-popup-close")) {
-            WeightHelper.last_instance = undefined;
             if (e != null && e.target.id.indexOf("_interrupt") > 0) {
-                document.body.removeChild(this.domCustomContextMenu);
-                document.body.removeEventListener("click", this.close);
+                this.finally();
                 return;
             }
 
@@ -1251,8 +1257,16 @@ class WeightHelper {
                 }
             }
             this.#doSave();
-            document.body.removeChild(this.domCustomContextMenu);
-            document.body.removeEventListener("click", this.close);
+            this.finally();
+        }
+    };
+
+    escape = (e) => {
+        if (e.key === 'Escape') {
+            if (!this.usingExecCommand) {
+                this.#update(this.lastText);
+            }
+            this.finally();
         }
     };
 }
