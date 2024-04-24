@@ -1230,13 +1230,13 @@ class WeightHelper {
         if (!this.domCustomContextMenu) return;
         if (e && e.target.id === `${this.tabId}_token_button`) return;
         if (e && this.domCustomContextMenu.contains(e.target)) return;
-
-        if (this.domCustomContextMenu.parentNode === document.body &&
-                (!e || e.target.id != "weight-helper-show-extra-opt-button")) {
+        if (!e || (e.target.id !== "weight-helper-show-extra-opt-button"
+                && e.target.id !== `${this.tabId}_lora_edit_user_metadata_button`
+                && e.className !== "global-popup-close")) {
             WeightHelper.last_instance = undefined;
             if (e != null && e.target.id.indexOf("_interrupt") > 0) {
                 document.body.removeChild(this.domCustomContextMenu);
-                window.removeEventListener("click", this.close);
+                document.body.removeEventListener("click", this.close);
                 return;
             }
 
@@ -1251,7 +1251,7 @@ class WeightHelper {
             }
             this.#trySave();
             document.body.removeChild(this.domCustomContextMenu);
-            window.removeEventListener("click", this.close);
+            document.body.removeEventListener("click", this.close);
         }
     };
 }
