@@ -1,7 +1,7 @@
 'use strict';
 
 const VERSION = "1.2.0"
-//localStorage.clear("weight_helper");
+localStorage.clear("weight_helper");
 
 var weight_helper_history;
 var weight_helper_bookmark;
@@ -25,6 +25,9 @@ class WeightSet {
     }
     clear() {
         return this.map.clear();
+    }
+    getAll() {
+        return [...this.map.values()];
     }
 }
 
@@ -100,22 +103,23 @@ class WeightData {
     }
 
     hashCode() {
-        let hash = 17;
-        hash = 31 * hash + (this.te[0]);
-        hash = 31 * hash + (this.use_unet ? 1 : 0);
-        hash = 31 * hash + (this.use_unet ? this.unet[0] : 0);
-        hash = 31 * hash + (this.use_dyn ? 1 : 0);
-        hash = 31 * hash + (this.use_dyn ? this.dyn[0] : 0);
-        hash = 31 * hash + (this.start[0]);
-        hash = 31 * hash + (this.stop[0] == null ? sampling_steps : this.stop[0]);
+        let hash = 0;
+        const calcHash = (v) => ((hash ^ v) << 5) - hash ^ v;
+        hash = calcHash(this.te[0]);
+        hash = calcHash(this.use_unet ? 1 : 0);
+        hash = calcHash(this.use_unet ? this.unet[0] : 0);
+        hash = calcHash(this.use_dyn ? 1 : 0);
+        hash = calcHash(this.use_dyn ? this.dyn[0] : 0);
+        hash = calcHash(this.start[0]/10);
+        hash = calcHash(this.stop[0] == null ? sampling_steps : this.stop[0]);
         if (this.isSpecial()) {
-            hash = 31 * hash + hashCode(this.special);
+            hash = calcHash(hashCode(this.special));
         } else {
             for (let i = 0; i < this.lbw.length; i++) {
-                hash = 31 * hash + this.lbw[i];
+                hash = calcHash(this.lbw[i]);
             }
         }
-        return hash;
+        return hash & 0xffffffff;
     }
 }
 
@@ -1107,7 +1111,8 @@ class WeightHelper {
         if (this.weightData.stop[0] == this.WEIGHT_SETTINGS.stop.default) {
             this.weightData.stop[0] = null;
         }
-        localStorage.setItem("weight_helper", JSON.stringify(weight_helper_bookmark));
+        weight_helper_bookmark[this.nameHash] = this.currentBookmarkSet.getAll();
+        localStorage.setItem("weight_helper_bookmark", JSON.stringify(weight_helper_bookmark));
     }
 
     async #makePreview() {
@@ -1254,10 +1259,10 @@ function hashCode(s) {
     if (s.length === 0) return hash;
     for (let i = 0; i < s.length; i++) {
         const char = s.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32bit integer
+        hash = hash ^ char;
+        hash = (hash << 5) - hash;
     }
-    return hash;
+    return hash & 0xffffffff;
 }
 
 async function postAPI(url, body) {
@@ -1282,20 +1287,20 @@ async function getTab(tabName) {
 
 document.addEventListener('DOMContentLoaded', function() {
     weight_helper_type = JSON.parse(localStorage.getItem("weight_helper_type"));
-    weight_helper_history = {};
     weight_helper_bookmark = {};
-    const historyTemp = JSON.parse(localStorage.getItem("weight_helper"));
+    weight_helper_history = {};
+    const historyTemp = JSON.parse(localStorage.getItem("weight_helper_bookmark"));
     if (historyTemp) {
         const weightSet = new WeightSet();
         Object.keys(historyTemp).forEach(nameHash => {
-            weight_helper_history[nameHash] = [];
             weight_helper_bookmark[nameHash] = [];
+            weight_helper_history[nameHash] = [];
             weightSet.clear();
             historyTemp[nameHash].filter(v => v.VERSION === VERSION && !v.special).forEach(v => {
                 const weightData = new WeightData(v);
                 if (!weightSet.has(weightData)) {
-                    weight_helper_history[nameHash].push(weightData);
                     weight_helper_bookmark[nameHash].push(weightData);
+                    weight_helper_history[nameHash].push(weightData);
                     weightSet.add(weightData);
                 }
             });
