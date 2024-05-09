@@ -14,14 +14,14 @@ class WeightSet {
     constructor() {
         this.map = new Map();
     }
-    add(weightData) {
-        return this.map.set(weightData.hashCode(), weightData);
+    add(weightDataHash, weightData) {
+        return this.map.set(weightDataHash, weightData);
     }
-    has(weightData) {
-        return this.map.has(weightData.hashCode());
+    has(weightDataHash) {
+        return this.map.has(weightDataHash);
     }
-    delete(weightData) {
-        return this.map.delete(weightData.hashCode());
+    delete(weightDataHash) {
+        return this.map.delete(weightDataHash);
     }
     clear() {
         return this.map.clear();
@@ -43,6 +43,7 @@ class WeightData {
     lbw;
     lbwe;
     special;
+    masks;
 
     constructor(data) {
         if (data) {
@@ -94,7 +95,7 @@ class WeightData {
             }
         } else {
             for (let i = 0; i < this.lbw.length; i++) {
-                if (this.lbw[i] !== other.lbw[i]) {
+                if ((!this.masks || this.masks[i] === 1) && this.lbw[i] !== other.lbw[i]) {
                     return false;
                 }
             }
@@ -102,7 +103,7 @@ class WeightData {
         return true;
     }
 
-    hashCode() {
+    hashCode(masks = this.masks) {
         let hash = 0;
         const calcHash = (v) => ((hash ^ v) << 5) - hash ^ v;
         hash = calcHash(this.te[0]);
@@ -113,10 +114,11 @@ class WeightData {
         hash = calcHash(this.start[0]/10);
         hash = calcHash(this.stop[0] == null ? sampling_steps : this.stop[0]);
         if (this.isSpecial()) {
-            hash = calcHash(hashCode(this.special));
+            hash = calcHash(strHashCode(this.special));
         } else {
             for (let i = 0; i < this.lbw.length; i++) {
-                hash = calcHash(this.lbw[i]);
+                const val = !masks || masks[i] === 1 ? this.lbw[i] : 0;
+                hash = calcHash(val);
             }
         }
         return hash & 0xffffffff;
@@ -246,7 +248,7 @@ class WeightHelper {
 
         this.weightTag = type;
         this.name = name;
-        this.nameHash = hashCode(name);
+        this.nameHash = strHashCode(name);
 
         const samplingSteps = gradioApp().getElementById(`${this.tabId}_steps`).querySelector("input");
         sampling_steps = parseInt(samplingSteps.value) * 100;
@@ -319,7 +321,7 @@ class WeightHelper {
                 this.lbwPresetsMap[weightTag.type][weightType.type] = lbwPreset;
                 this.lbwPresetsValueKeyMap[weightTag.type][weightType.type] = lbwPresetValueKey;
 
-                const blockLength = this.#getLbwWeightSetting().masks.filter((b) => b == 1).length;
+                const blockLength = this.#getLbwWeightSetting(weightTag.type, weightType.type).masks.filter((b) => b == 1).length;
                 for (const line of lbwPresets) {
                     const kv = line.split(":");
                     if (kv.length == 2 && kv[1].split(",").length == blockLength) {
@@ -412,6 +414,7 @@ class WeightHelper {
             }
         }
 
+        const masks = this.#getLbwWeightSetting().masks;
         if (!weight_helper_history[this.nameHash]) {
             weight_helper_history[this.nameHash] = [];
         }
@@ -428,7 +431,7 @@ class WeightHelper {
             weight_helper_bookmark[this.nameHash] = [];
         }
         weight_helper_bookmark[this.nameHash].forEach(bookmark => {
-            this.currentBookmarkSet.add(bookmark);
+            this.currentBookmarkSet.add(bookmark.hashCode(), bookmark);
         });
         this.historyIndex = this.currentHistory.length - 1;
     }
@@ -449,24 +452,30 @@ class WeightHelper {
         header.appendChild(headerTitle);
 
         this.domBookmarkIcon = document.createElement('span');
-        const isBookmarked = this.currentBookmarkSet.has(this.weightData);
+
+        const masks = this.#getLbwWeightSetting().masks;
+        const weightDataHash = this.weightData.hashCode(masks);
+        const isBookmarked = this.currentBookmarkSet.has(weightDataHash);
         this.domBookmarkIcon.className = `bookmark ${isBookmarked ? "like" : "unlike"}`;
         if (this.weightData.isSpecial()) {
             this.domBookmarkIcon.style.visibility = "hidden";
         }
         headerTitle.prepend(this.domBookmarkIcon);
         this.domBookmarkIcon.addEventListener("click", () => {
-            const isBookmarked = this.currentBookmarkSet.has(this.weightData);
+            const masks = this.#getLbwWeightSetting().masks;
+            const weightDataHash = this.weightData.hashCode(masks);
+            const isBookmarked = this.currentBookmarkSet.has(weightDataHash);
 
             this.#updateBookmarkedIcon(!isBookmarked);
             if (isBookmarked) {
-                this.currentBookmarkSet.delete(this.weightData);
+                this.currentBookmarkSet.delete(weightDataHash);
             } else {
                 const weightDataClone = this.weightData.clone();
+                weightDataClone.masks = masks;
                 if (weightDataClone.stop[0] == this.WEIGHT_SETTINGS.stop.default) {
                     weightDataClone.stop[0] = null;
                 }
-                this.currentBookmarkSet.add(weightDataClone);
+                this.currentBookmarkSet.add(weightDataHash, weightDataClone);
             }
         });
 
@@ -650,6 +659,10 @@ class WeightHelper {
                     const updatedText = this.#getUpdatedText();
                     this.#update(updatedText);
                 }
+                const masks = this.#getLbwWeightSetting().masks;
+                const weightDataHash = this.weightData.hashCode(masks);
+                const isBookmarked = this.currentBookmarkSet.has(weightDataHash);
+                this.#updateBookmarkedIcon(isBookmarked);
             });
             typeType.appendChild(weightTypeRadio);
 
@@ -704,7 +717,8 @@ class WeightHelper {
                     this.weightUIs[group].updown[idx].value = val / 100;
                 }
 
-                const isBookmarked = this.currentBookmarkSet.has(this.weightData);
+                const weightDataHash = this.weightData.hashCode(masks);
+                const isBookmarked = this.currentBookmarkSet.has(weightDataHash);
                 this.#updateBookmarkedIcon(isBookmarked);
             }
 
@@ -846,7 +860,9 @@ class WeightHelper {
             useCheck.addEventListener("change", (e) => {
                 this.weightData[`use_${group}`] = e.target.checked;
 
-                const isBookmarked = this.currentBookmarkSet.has(this.weightData);
+                const masks = this.#getLbwWeightSetting().masks;
+                const weightDataHash = this.weightData.hashCode(masks);
+                const isBookmarked = this.currentBookmarkSet.has(weightDataHash);
                 this.#updateBookmarkedIcon(isBookmarked);
 
                 if (!this.usingExecCommand) {
@@ -891,7 +907,9 @@ class WeightHelper {
                 }
             }
 
-            const isBookmarked = this.currentBookmarkSet.has(this.weightData);
+            const masks = this.#getLbwWeightSetting().masks;
+            const weightDataHash = this.weightData.hashCode(masks);
+            const isBookmarked = this.currentBookmarkSet.has(weightDataHash);
             this.#updateBookmarkedIcon(isBookmarked);
 
             if (!this.usingExecCommand) {
@@ -983,7 +1001,9 @@ class WeightHelper {
             this.#update(updatedText);
         }
 
-        const isBookmarked = this.currentBookmarkSet.has(this.weightData);
+        const masks = this.#getLbwWeightSetting().masks;
+        const weightDataHash = this.weightData.hashCode(masks);
+        const isBookmarked = this.currentBookmarkSet.has(weightDataHash);
         this.#updateBookmarkedIcon(isBookmarked);
     }
 
@@ -1273,7 +1293,7 @@ class WeightHelper {
     };
 }
 
-function hashCode(s) {
+function strHashCode(s) {
     let hash = 0;
     if (s.length === 0) return hash;
     for (let i = 0; i < s.length; i++) {
@@ -1310,7 +1330,7 @@ document.addEventListener('DOMContentLoaded', function() {
     weight_helper_history = {};
     const historyTemp = JSON.parse(localStorage.getItem("weight_helper_bookmark"));
     if (historyTemp) {
-        const weightSet = new WeightSet();
+        const weightSet = new Set();
         Object.keys(historyTemp).forEach(nameHash => {
             weight_helper_bookmark[nameHash] = [];
             weight_helper_history[nameHash] = [];
