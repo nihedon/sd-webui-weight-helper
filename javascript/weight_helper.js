@@ -2,6 +2,7 @@
 
 const VERSION = "1.2.0"
 localStorage.removeItem("weight_helper");
+localStorage.removeItem("weight_helper_type");
 
 var weight_helper_history;
 var weight_helper_bookmark;
@@ -285,7 +286,7 @@ class WeightHelper {
         }
     }
 
-    async init(allWeights) {
+    async init(multiplier) {
         let loadedSdVersion;
         let loadedNetworkModule;
         if (this.nameHash in weight_helper_type) {
@@ -309,7 +310,7 @@ class WeightHelper {
             }
         }
 
-        if (loadedNetworkModule && !(this.nameHash in weight_helper_type)) {
+        if (loadedNetworkModule) {
             this.networkModule = loadedNetworkModule;
         }
 
@@ -355,21 +356,21 @@ class WeightHelper {
         this.weightData.special = "";
 
         const keyTypes = ["te", "unet", "dyn"];
-        const weightBlocksArray = allWeights.split(":");
+        const lbwBlocks = multiplier.split(":");
         let isTypeDetermined = false;
-        for (let i = 0; i < weightBlocksArray.length; i++) {
-            let weightKeyVal = weightBlocksArray[i].split("=");
+        for (let i = 0; i < lbwBlocks.length; i++) {
+            let lbwBlock = lbwBlocks[i].split("=");
             let keyType;
             let blocks;
-            if (weightKeyVal.length > 1) {
-                keyType = weightKeyVal[0].toLowerCase();
-                blocks = weightKeyVal[1];
+            if (lbwBlock.length > 1) {
+                keyType = lbwBlock[0].toLowerCase();
+                blocks = lbwBlock[1];
             } else {
                 keyType = keyTypes[i];
-                blocks = weightKeyVal[0];
+                blocks = lbwBlock[0];
             }
             if (keyType === "lbw") {
-                blocks = weightKeyVal[1].split(',');
+                blocks = lbwBlock[1].split(',');
 
                 if (blocks.length === 1 && WeightHelper.SPECIAL_PRESETS.includes(blocks[0])) {
                     this.weightData.special = blocks[0];
@@ -1419,7 +1420,7 @@ function init(_, tabId) {
             if (match) {
                 const type = match[1].toLowerCase();
                 const name = match[2];
-                const weights = match[3];
+                const multiplier = match[3];
 
                 if (WeightHelper.SUPPORT_TYPE_SET.has(type)) {
                     e.preventDefault();
@@ -1427,7 +1428,7 @@ function init(_, tabId) {
                     const selectionStart = tmpSelectionStart + match.index;
                     const selectionEnd = selectionStart + match.input.trim().length;
                     const lastWeightInfo = new WeightHelper(tabId, e.target, selectionStart, selectionEnd, type, name);
-                    lastWeightInfo.init(weights).then(() => {
+                    lastWeightInfo.init(multiplier).then(() => {
                         lastWeightInfo.show(e.pageY + 15, e.pageX);
                     })
                 }

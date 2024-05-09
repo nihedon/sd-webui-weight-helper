@@ -35,21 +35,25 @@ class WeightHelperAPI:
         return cls.instance
 
     def __init__(self):
-        self.networks = None
-        try:
-            self.networks = importlib.import_module("extensions-builtin.Lora.networks")
-        except Exception:
-            pass
         self.lister = util.MassFileLister()
+
+    def __get_networks(self):
+        try:
+            return importlib.import_module("extensions-builtin.Lora.ui_extra_networks_lora").networks
+        except Exception:
+            return None
 
     def get_lora_info(self, key):
         sd_version = None
         ss_network_module = None
 
-        if self.networks:
-            lora_on_disk = self.networks.available_network_aliases.get(key)
+        networks = self.__get_networks()
+        if networks:
+            lora_on_disk = networks.available_network_aliases.get(key)
             if lora_on_disk:
                 sd_version = lora_on_disk.sd_version.name
+                if sd_version == "Unknown":
+                    sd_version = None
                 ss_network_module = lora_on_disk.metadata.get("ss_network_module")
 
         return sd_version, ss_network_module
@@ -59,37 +63,39 @@ class WeightHelperAPI:
         lora_on_disk = None
         path = None
 
-        if self.networks:
-            lora_on_disk = self.networks.available_network_aliases.get(key)
+        networks = self.__get_networks()
+        if networks:
+            lora_on_disk = networks.available_network_aliases.get(key)
             if lora_on_disk:
                 path, _ = os.path.splitext(lora_on_disk.filename)
+                name = lora_on_disk.name
 
-        preview = self._find_preview(path)
-        has_metadata = self._find_metadata(lora_on_disk)
-        description = self._find_description(path)
-        modelId = self._find_civitai_model_id(path)
+        preview = self.__find_preview(path)
+        has_metadata = self.__find_metadata(lora_on_disk)
+        description = self.__find_description(path)
+        modelId = self.__find_civitai_model_id(path)
         return name, preview, has_metadata, description, modelId
 
-    def _link_preview(self, filename):
+    def __link_preview(self, filename):
         quoted_filename = urllib.parse.quote(filename.replace('\\', '/'))
         #use browser cache
         #mtime, _ = self.lister.mctime(filename)
         #return f"./sd_extra_networks/thumb?filename={quoted_filename}&mtime={mtime}"
         return f"./sd_extra_networks/thumb?filename={quoted_filename}"
 
-    def _find_preview(self, path):
+    def __find_preview(self, path):
         if path:
             potential_files = sum([[f"{path}.{ext}", f"{path}.preview.{ext}"] for ext in allowed_preview_extensions], [])
             for file in potential_files:
                 if self.lister.exists(file):
-                    return self._link_preview(file)
+                    return self.__link_preview(file)
         return "./file=html/card-no-preview.png"
 
-    def _find_metadata(self, lora):
+    def __find_metadata(self, lora):
         return len(lora.metadata) > 0 if lora else False
 
     #@functools.cache
-    def _find_description(self, path):
+    def __find_description(self, path):
         if path:
             for file in [f"{path}.txt", f"{path}.description.txt"]:
                 if self.lister.exists(file):
@@ -101,7 +107,7 @@ class WeightHelperAPI:
         return None
 
     @functools.cache
-    def _find_civitai_model_id(self, path):
+    def __find_civitai_model_id(self, path):
         if path:
             civitai_info = f"{path}.civitai.info"
             if self.lister.exists(civitai_info):
