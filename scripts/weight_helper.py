@@ -5,7 +5,7 @@ import importlib
 import json
 import urllib.parse
 from fastapi import FastAPI
-from modules import extra_networks, script_callbacks, shared, util
+from modules import script_callbacks, shared, util
 
 prefix = "/whapi/v1"
 
@@ -25,73 +25,91 @@ class WeightHelperAPI:
         async def _(key: str):
             return instance.get_lora_info(key)
 
+        @app.post(prefix + "/get_preview_info")
+        async def _(key: str):
+            return instance.get_preview_info(key)
+
     def __new__(cls, *args, **kwargs):
         if not cls.instance:
             cls.instance = super(WeightHelperAPI, cls).__new__(cls, *args, **kwargs)
         return cls.instance
 
     def __init__(self):
-        self.module_lora = importlib.import_module("extensions-builtin.Lora.lora")
+        self.networks = None
+        try:
+            self.networks = importlib.import_module("extensions-builtin.Lora.networks")
+        except Exception:
+            pass
         self.lister = util.MassFileLister()
 
     def get_lora_info(self, key):
-        lora = self.module_lora.available_lora_aliases.get(key)
-        if not lora:
-            return None
+        sd_version = None
+        ss_network_module = None
 
-        path, _ = os.path.splitext(lora.filename)
+        if self.networks:
+            lora_on_disk = self.networks.available_network_aliases.get(key)
+            if lora_on_disk:
+                sd_version = lora_on_disk.sd_version.name
+                ss_network_module = lora_on_disk.metadata.get("ss_network_module")
 
-        metadata = extra_networks.get_user_metadata(lora.filename, lister=self.lister)
+        return sd_version, ss_network_module
 
-        sd_version = metadata.get("sd version")
-        if not sd_version:
-            sd_version = lora.sd_version
-        else:
-            pass
+    def get_preview_info(self, key):
+        name = key
+        lora_on_disk = None
+        path = None
+
+        if self.networks:
+            lora_on_disk = self.networks.available_network_aliases.get(key)
+            if lora_on_disk:
+                path, _ = os.path.splitext(lora_on_disk.filename)
 
         preview = self._find_preview(path)
-        hasMetadata = self._find_metadata(lora)
+        has_metadata = self._find_metadata(lora_on_disk)
         description = self._find_description(path)
         modelId = self._find_civitai_model_id(path)
-        return lora.name, preview, hasMetadata, description, modelId
+        return name, preview, has_metadata, description, modelId
 
     def _link_preview(self, filename):
         quoted_filename = urllib.parse.quote(filename.replace('\\', '/'))
-        mtime, _ = self.lister.mctime(filename)
         #use browser cache
+        #mtime, _ = self.lister.mctime(filename)
         #return f"./sd_extra_networks/thumb?filename={quoted_filename}&mtime={mtime}"
         return f"./sd_extra_networks/thumb?filename={quoted_filename}"
 
     def _find_preview(self, path):
-        potential_files = sum([[f"{path}.{ext}", f"{path}.preview.{ext}"] for ext in allowed_preview_extensions], [])
-        for file in potential_files:
-            if self.lister.exists(file):
-                return self._link_preview(file)
+        if path:
+            potential_files = sum([[f"{path}.{ext}", f"{path}.preview.{ext}"] for ext in allowed_preview_extensions], [])
+            for file in potential_files:
+                if self.lister.exists(file):
+                    return self._link_preview(file)
         return "./file=html/card-no-preview.png"
 
     def _find_metadata(self, lora):
-        return len(lora.metadata) > 0
+        return len(lora.metadata) > 0 if lora else False
 
-    @functools.cache
+    #@functools.cache
     def _find_description(self, path):
-        for file in [f"{path}.txt", f"{path}.description.txt"]:
-            if self.lister.exists(file):
-                try:
-                    with open(file, "r", encoding="utf-8", errors="replace") as f:
-                        return f.read()
-                except OSError:
-                    pass
+        if path:
+            for file in [f"{path}.txt", f"{path}.description.txt"]:
+                if self.lister.exists(file):
+                    try:
+                        with open(file, "r", encoding="utf-8", errors="replace") as f:
+                            return f.read()
+                    except OSError:
+                        pass
         return None
 
     @functools.cache
     def _find_civitai_model_id(self, path):
-        civitai_info = f"{path}.civitai.info"
-        if self.lister.exists(civitai_info):
-            try:
-                with open(civitai_info, "r", encoding="utf-8", errors="replace") as f:
-                    return json.load(f).get("modelId")
-            except OSError:
-                pass
+        if path:
+            civitai_info = f"{path}.civitai.info"
+            if self.lister.exists(civitai_info):
+                try:
+                    with open(civitai_info, "r", encoding="utf-8", errors="replace") as f:
+                        return json.load(f).get("modelId")
+                except OSError:
+                    pass
         return None
 
 def on_ui_settings():
@@ -109,6 +127,7 @@ def on_ui_settings():
             "In exchange for no longer being updated in real-time, "
             "you can use 'undo' to revert the text to its previous state."
         ),
+        'weight_helper_fix_lora': shared.OptionInfo(True, 'Fix tag name to \'lora\' after editing'),
 
         "weight_helper_te_min": shared.OptionInfo(0, "TEnc min value", gr.Number),
         "weight_helper_te_max": shared.OptionInfo(1, "TEnc max value", gr.Number),
@@ -132,7 +151,7 @@ def on_ui_settings():
             "choices": ["Top Right", "Bottom Right", "Top Left", "Bottom Left"]
         }),
 
-        "weight_helper_lbw_lora__block_points": shared.OptionInfo(
+        "weight_helper_lbw_lora_sd1_block_points": shared.OptionInfo(
             "BASE, IN01-IN04, IN05-IN08, M00, OUT03-OUT06, OUT07-OUT11",
             "Advanced option - LoRA block points"
         ).info(
@@ -150,7 +169,7 @@ def on_ui_settings():
         ).info(
             "default: BASE, IN00-IN05, IN06-IN11, M00, OUT00-OUT05, OUT06-OUT11"
         ),
-        "weight_helper_lbw_lyco__block_points": shared.OptionInfo(
+        "weight_helper_lbw_lyco_sd1_block_points": shared.OptionInfo(
             "BASE, IN00-IN05, IN06-IN11, M00, OUT00-OUT05, OUT06-OUT11",
             "Advanced option - LyCORIS block points"
         ).info(

@@ -164,18 +164,18 @@ class WeightHelper {
             step: opts.weight_helper_lbw_step * 100
         }
     };
-    LBW_WEIGHT_TAGS = [
+    LBW_WEIGHT_NETWORK_MODULES = [
         { type: "lora", label: "LoRA" },
         { type: "lyco", label: "LyCORIS" }
     ];
-    LBW_WEIGHT_TYPES = [
-        { type: "", label: "Default" },
+    LBW_WEIGHT_SD_VERSIONS = [
+        { type: "sd1", label: "SD1" },
         { type: "sdxl", label: "SDXL" },
         { type: "all", label: "ALL" }
     ];
     LBW_WEIGHT_SETTINGS = {
         lora: {
-            "": {
+            "sd1": {
                 masks: [1,0,1,1,0,1,1,0,1,1,0,0,0,1,0,0,0,1,1,1,1,1,1,1,1,1],
                 block_points: ["BASE", "IN01-IN04", "IN05-IN08", "M00", "OUT03-OUT06", "OUT07-OUT11"]
             },
@@ -189,7 +189,7 @@ class WeightHelper {
             }
         },
         lyco: {
-            "": {
+            "sd1": {
                 masks: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
                 block_points: ["BASE", "IN00-IN05", "IN06-IN11", "M00", "OUT00-OUT05", "OUT06-OUT11"]
             },
@@ -217,8 +217,8 @@ class WeightHelper {
     lbwPresetsValueKeyMap = {};
     weightUIs = {};
 
-    weightTag = null;
-    weightType = "";
+    networkModule = null;
+    sdVersion = "";
     name = null;
     nameHash = null;
     currentHistory = null;
@@ -239,14 +239,14 @@ class WeightHelper {
     domPresetSelect = null;
     domLbwGroupWrapper = null;
 
-    constructor(tabId, textarea, selectionStart, selectionEnd, type, name, allWeights) {
+    constructor(tabId, textarea, selectionStart, selectionEnd, type, name) {
         this.tabId = tabId;
         this.textarea = textarea;
         this.lastSelectionStart = selectionStart;
         this.lastSelectionEnd = selectionEnd;
         this.lastText = this.textarea.value.substring(this.lastSelectionStart, this.lastSelectionEnd);
 
-        this.weightTag = type;
+        this.networkModule = type;
         this.name = name;
         this.nameHash = strHashCode(name);
 
@@ -259,33 +259,22 @@ class WeightHelper {
         }
 
         const optBlockPattern = /((BASE|MID|M00|(IN|OUT)[0-9]{1,2}(-(IN|OUT)[0-9]{1,2})?) *(, *|$))+/;
-        for (let weightTag of this.LBW_WEIGHT_TAGS) {
-            for (let weightType of this.LBW_WEIGHT_TYPES) {
+        for (let networkModule of this.LBW_WEIGHT_NETWORK_MODULES) {
+            for (let sdVersion of this.LBW_WEIGHT_SD_VERSIONS) {
                 try {
-                    let optBlockPoints = opts[`weight_helper_lbw_${weightTag.type}_${weightType.type}_block_points`]
+                    let optBlockPoints = opts[`weight_helper_lbw_${networkModule.type}_${sdVersion.type}_block_points`]
                     optBlockPoints = optBlockPoints.replace("MID", "M00");
                     if (optBlockPattern.exec(optBlockPoints)) {
                         const blockPoints = optBlockPoints.split(',').map(v => {
                             return v.trim().replace(/\d+/g, match => match.length === 1 ? `0${match}` : match);
                         });
-                        this.#getLbwWeightSetting(weightTag.type, weightType.type).block_points = blockPoints;
+                        this.#getLbwWeightSetting(networkModule.type, sdVersion.type).block_points = blockPoints;
                     }
                 } catch (e) {
-                    console.warn(`${weightTag.type}_${weightType.type} block definition format is invalid.`, e);
+                    console.warn(`${networkModule.type}_${sdVersion.type} block definition format is invalid.`, e);
                 }
             }
         }
-
-        this.#init(allWeights);
-
-        this.#makeContextMenuHeader();
-
-        if (opts.weight_helper_show_preview) {
-            this.#makePreview();
-        }
-
-        this.#makeContextMenuBody();
-        this.#makeLbwGroupWrapper();
 
         if (opts.weight_helper_using_execCommand) {
             if (typeof document.execCommand === 'function') {
@@ -296,9 +285,32 @@ class WeightHelper {
         }
     }
 
-    #init(allWeights) {
-        if (!weight_helper_type) {
-            weight_helper_type = {};
+    async init(allWeights) {
+        let loadedSdVersion;
+        let loadedNetworkModule;
+        if (this.nameHash in weight_helper_type) {
+            loadedSdVersion = weight_helper_type[this.nameHash].sdVersion;
+            loadedNetworkModule = weight_helper_type[this.nameHash].networkModule;
+        } else {
+            const res = await postAPI("/whapi/v1/get_lora_info?key=" + encodeURIComponent(this.name), null);
+            loadedSdVersion = res[0];
+            if (loadedSdVersion) {
+                loadedSdVersion = loadedSdVersion.toLowerCase();
+            } else {
+                loadedSdVersion = "all";
+            }
+            loadedNetworkModule = res[1];
+            if (loadedNetworkModule) {
+                if (loadedNetworkModule.indexOf("lora") >= 0) {
+                    loadedNetworkModule = "lora";
+                } else if (loadedNetworkModule.indexOf("lycoris") >= 0) {
+                    loadedNetworkModule = "lyco";
+                }
+            }
+        }
+
+        if (loadedNetworkModule && !(this.nameHash in weight_helper_type)) {
+            this.networkModule = loadedNetworkModule;
         }
 
         this.WEIGHT_SETTINGS.start.max = sampling_steps;
@@ -311,17 +323,17 @@ class WeightHelper {
             lbwPresetValue = "";
         }
         const lbwPresets = lbwPresetValue.split("\n").filter(e => e.trim() !== '');
-        for (const weightTag of this.LBW_WEIGHT_TAGS) {
-            this.lbwPresetsMap[weightTag.type] = {};
-            this.lbwPresetsValueKeyMap[weightTag.type] = {};
-            for (const weightType of this.LBW_WEIGHT_TYPES) {
+        for (const networkModule of this.LBW_WEIGHT_NETWORK_MODULES) {
+            this.lbwPresetsMap[networkModule.type] = {};
+            this.lbwPresetsValueKeyMap[networkModule.type] = {};
+            for (const sdVersion of this.LBW_WEIGHT_SD_VERSIONS) {
                 let lbwPreset = {};
                 let lbwPresetValueKey = {};
 
-                this.lbwPresetsMap[weightTag.type][weightType.type] = lbwPreset;
-                this.lbwPresetsValueKeyMap[weightTag.type][weightType.type] = lbwPresetValueKey;
+                this.lbwPresetsMap[networkModule.type][sdVersion.type] = lbwPreset;
+                this.lbwPresetsValueKeyMap[networkModule.type][sdVersion.type] = lbwPresetValueKey;
 
-                const blockLength = this.#getLbwWeightSetting(weightTag.type, weightType.type).masks.filter((b) => b == 1).length;
+                const blockLength = this.#getLbwWeightSetting(networkModule.type, sdVersion.type).masks.filter((b) => b == 1).length;
                 for (const line of lbwPresets) {
                     const kv = line.split(":");
                     if (kv.length == 2 && kv[1].split(",").length == blockLength) {
@@ -334,9 +346,9 @@ class WeightHelper {
 
         this.weightData.VERSION = VERSION;
 
-        for (const weightType of Object.keys(this.WEIGHT_SETTINGS)) {
-            this.weightData[weightType] = []
-            this.weightData[weightType].push(this.WEIGHT_SETTINGS[weightType].default);
+        for (const sdVersion of Object.keys(this.WEIGHT_SETTINGS)) {
+            this.weightData[sdVersion] = []
+            this.weightData[sdVersion].push(this.WEIGHT_SETTINGS[sdVersion].default);
         }
         this.weightData.lbw = [];
         this.weightData.lbwe = [];
@@ -363,8 +375,8 @@ class WeightHelper {
                     this.weightData.special = blocks[0];
                 }
 
-                for (const weightType of this.LBW_WEIGHT_TYPES) {
-                    const lbwPresets = this.lbwPresetsMap[this.weightTag][weightType.type];
+                for (const sdVersion of this.LBW_WEIGHT_SD_VERSIONS) {
+                    const lbwPresets = this.lbwPresetsMap[this.networkModule][sdVersion.type];
                     if (blocks in lbwPresets) {
                         blocks = lbwPresets[blocks].split(',');
                         break;
@@ -372,10 +384,10 @@ class WeightHelper {
                 }
 
                 const lbwDefault = this.WEIGHT_SETTINGS.lbw.default;
-                for (const weightType of this.LBW_WEIGHT_TYPES) {
-                    const masks = this.#getLbwWeightSetting(this.weightTag, weightType.type).masks;
+                for (const sdVersion of this.LBW_WEIGHT_SD_VERSIONS) {
+                    const masks = this.#getLbwWeightSetting(this.networkModule, sdVersion.type).masks;
                     if (blocks.length === masks.filter((b) => b == 1).length) {
-                        this.weightType = weightType.type;
+                        this.sdVersion = sdVersion.type;
                         isTypeDetermined = true;
                         let refIdx = 0;
                         for (let enable of masks) {
@@ -404,7 +416,9 @@ class WeightHelper {
 
         if (!isTypeDetermined) {
             if (this.nameHash in weight_helper_type) {
-                this.weightType = weight_helper_type[this.nameHash]
+                this.sdVersion = weight_helper_type[this.nameHash].sdVersion;
+            } else {
+                this.sdVersion = loadedSdVersion;
             }
         }
         if (!this.weightData.lbw.length) {
@@ -414,7 +428,6 @@ class WeightHelper {
             }
         }
 
-        const masks = this.#getLbwWeightSetting().masks;
         if (!weight_helper_history[this.nameHash]) {
             weight_helper_history[this.nameHash] = [];
         }
@@ -434,6 +447,14 @@ class WeightHelper {
             this.currentBookmarkSet.add(bookmark.hashCode(), bookmark);
         });
         this.historyIndex = this.currentHistory.length - 1;
+
+        this.#makeContextMenuHeader();
+        this.#makeContextMenuBody();
+        this.#makeLbwGroupWrapper();
+
+        if (opts.weight_helper_show_preview) {
+            this.#makePreview();
+        }
     }
 
     #makeContextMenuHeader() {
@@ -622,15 +643,15 @@ class WeightHelper {
 
         const lbwTagSelect = document.createElement("select");
         lbwTagSelect.style.flexGrow = 1;
-        for (const weightTag of this.LBW_WEIGHT_TAGS) {
+        for (const networkModule of this.LBW_WEIGHT_NETWORK_MODULES) {
             const lbwTagOpt = document.createElement('option');
-            lbwTagOpt.value = weightTag.type;
-            lbwTagOpt.text = weightTag.label;
+            lbwTagOpt.value = networkModule.type;
+            lbwTagOpt.text = networkModule.label;
             lbwTagSelect.appendChild(lbwTagOpt);
         }
-        lbwTagSelect.value = this.weightTag;
+        lbwTagSelect.value = this.networkModule;
         lbwTagSelect.addEventListener("change", (e) => {
-            this.weightTag = e.target.value;
+            this.networkModule = e.target.value;
             this.#makeLbwGroupWrapper();
             if (!this.usingExecCommand) {
                 const updatedText = this.#getUpdatedText();
@@ -644,16 +665,16 @@ class WeightHelper {
 
         const typeType = document.createElement("div");
         typeType.className = "f g-2 f-end";
-        for (const weightType of this.LBW_WEIGHT_TYPES) {
-            const radioId = "weight-helper-detail_" + weightType.type;
-            const weightTypeRadio = document.createElement("input");
-            weightTypeRadio.id = radioId;
-            weightTypeRadio.type = "radio";
-            weightTypeRadio.name = "weight-helper-detail";
-            weightTypeRadio.value = weightType.type;
-            weightTypeRadio.checked = weightType.type == this.weightType;
-            weightTypeRadio.addEventListener("change", (e) => {
-                this.weightType = e.target.value;
+        for (const sdVersion of this.LBW_WEIGHT_SD_VERSIONS) {
+            const radioId = "weight-helper-detail_" + sdVersion.type;
+            const sdVersionRadio = document.createElement("input");
+            sdVersionRadio.id = radioId;
+            sdVersionRadio.type = "radio";
+            sdVersionRadio.name = "weight-helper-detail";
+            sdVersionRadio.value = sdVersion.type;
+            sdVersionRadio.checked = sdVersion.type == this.sdVersion;
+            sdVersionRadio.addEventListener("change", (e) => {
+                this.sdVersion = e.target.value;
                 this.#makeLbwGroupWrapper();
                 if (!this.usingExecCommand) {
                     const updatedText = this.#getUpdatedText();
@@ -664,13 +685,13 @@ class WeightHelper {
                 const isBookmarked = this.currentBookmarkSet.has(weightDataHash);
                 this.#updateBookmarkedIcon(isBookmarked);
             });
-            typeType.appendChild(weightTypeRadio);
+            typeType.appendChild(sdVersionRadio);
 
-            const weightTypeLabel = document.createElement("label");
-            weightTypeLabel.className = "radio-label";
-            weightTypeLabel.textContent = weightType.label;
-            weightTypeLabel.htmlFor = radioId;
-            typeType.appendChild(weightTypeLabel);
+            const sdVersionLabel = document.createElement("label");
+            sdVersionLabel.className = "radio-label";
+            sdVersionLabel.textContent = sdVersion.label;
+            sdVersionLabel.htmlFor = radioId;
+            typeType.appendChild(sdVersionLabel);
         }
         typeTypeRow.appendChild(typeType);
 
@@ -769,11 +790,11 @@ class WeightHelper {
             this.domPresetSelect.appendChild(spOpt);
         }
 
-        if (Object.keys(this.lbwPresetsMap[this.weightTag][this.weightType]).length) {
-            for (const key of Object.keys(this.lbwPresetsMap[this.weightTag][this.weightType])) {
+        if (Object.keys(this.lbwPresetsMap[this.networkModule][this.sdVersion]).length) {
+            for (const key of Object.keys(this.lbwPresetsMap[this.networkModule][this.sdVersion])) {
                 const opt = document.createElement('option');
                 opt.text = key;
-                opt.value = this.lbwPresetsMap[this.weightTag][this.weightType][key];
+                opt.value = this.lbwPresetsMap[this.networkModule][this.sdVersion][key];
                 this.domPresetSelect.appendChild(opt);
             }
         }
@@ -815,8 +836,8 @@ class WeightHelper {
         return this.weightData.lbw.filter((_, i) => masks[i] === 1).map(v => v / 100);
     }
 
-    #getLbwWeightSetting(weightTag = this.weightTag, weightType = this.weightType) {
-        return this.LBW_WEIGHT_SETTINGS[weightTag][weightType];
+    #getLbwWeightSetting(networkModule = this.networkModule, sdVersion = this.sdVersion) {
+        return this.LBW_WEIGHT_SETTINGS[networkModule][sdVersion];
     }
 
     #makeSlider(group, i) {
@@ -893,7 +914,7 @@ class WeightHelper {
             if (lbwPresetSelect && group === "lbw") {
                 this.weightData.special = "";
                 lbwValues = this.#lbwWeightData().join(",");
-                if (lbwValues in this.lbwPresetsValueKeyMap[this.weightTag][this.weightType]) {
+                if (lbwValues in this.lbwPresetsValueKeyMap[this.networkModule][this.sdVersion]) {
                     lbwPresetSelect.value = lbwValues;
                 } else {
                     lbwPresetSelect.selectedIndex = 0;
@@ -988,7 +1009,7 @@ class WeightHelper {
             this.domLbwGroupWrapper.style.display = "none";
         } else {
             const lbwValues = this.#lbwWeightData().join(",");
-            if (lbwValues in this.lbwPresetsValueKeyMap[this.weightTag][this.weightType]) {
+            if (lbwValues in this.lbwPresetsValueKeyMap[this.networkModule][this.sdVersion]) {
                 this.domPresetSelect.value = lbwValues;
             } else {
                 this.domPresetSelect.selectedIndex = 0;
@@ -1016,7 +1037,8 @@ class WeightHelper {
     }
 
     #getUpdatedText() {
-        let updatedText = `<${this.weightTag}:${this.name}`;
+        const tagName = opts.weight_helper_fix_lora ? "lora" : this.networkModule;
+        let updatedText = `<${tagName}:${this.name}`;
         const optionalTypes = ["te", "unet", "dyn"];
         let refIdx = 0;
         for (let idx = 0; idx < optionalTypes.length; idx++) {
@@ -1068,8 +1090,8 @@ class WeightHelper {
             if (!lbwWeights.every(val => val === this.WEIGHT_SETTINGS.lbw.default)) {
                 let rateValues = lbwWeights.map(v => v / 100).join(",");
                 const lbwValues = this.#lbwWeightData().join(",");
-                if (lbwValues in this.lbwPresetsValueKeyMap[this.weightTag][this.weightType]) {
-                    rateValues = this.lbwPresetsValueKeyMap[this.weightTag][this.weightType][lbwValues];
+                if (lbwValues in this.lbwPresetsValueKeyMap[this.networkModule][this.sdVersion]) {
+                    rateValues = this.lbwPresetsValueKeyMap[this.networkModule][this.sdVersion][lbwValues];
                 }
                 updatedText += `:lbw=${rateValues}`;
             }
@@ -1103,12 +1125,7 @@ class WeightHelper {
     }
 
     #doSave() {
-        if (!this.weightType) {
-            delete weight_helper_type[this.nameHash];
-        } else {
-            weight_helper_type[this.nameHash] = this.weightType;
-        }
-        localStorage.setItem("weight_helper_type", JSON.stringify(weight_helper_type));
+        weight_helper_type[this.nameHash] = { "sdVersion": this.sdVersion, "networkModule": this.networkModule };
 
         const lbwDefault = this.WEIGHT_SETTINGS.lbw.default;
         const masks = this.#getLbwWeightSetting().masks;
@@ -1138,7 +1155,7 @@ class WeightHelper {
     }
 
     async #makePreview() {
-        const res = await postAPI("/whapi/v1/get_lora_info?key=" + encodeURIComponent(this.name), null);
+        const res = await postAPI("/whapi/v1/get_preview_info?key=" + encodeURIComponent(this.name), null);
         const loraName = res[0];
         const previewPath = res[1];
         const hasMetadata = res[2];
@@ -1325,7 +1342,7 @@ async function getTab(tabName) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    weight_helper_type = JSON.parse(localStorage.getItem("weight_helper_type"));
+    weight_helper_type = {};
     weight_helper_bookmark = {};
     weight_helper_history = {};
     const historyTemp = JSON.parse(localStorage.getItem("weight_helper_bookmark"));
@@ -1409,8 +1426,10 @@ function init(_, tabId) {
 
                     const selectionStart = tmpSelectionStart + match.index;
                     const selectionEnd = selectionStart + match.input.trim().length;
-                    const lastWeightInfo = new WeightHelper(tabId, e.target, selectionStart, selectionEnd, type, name, weights);
-                    lastWeightInfo.show(e.pageY + 15, e.pageX);
+                    const lastWeightInfo = new WeightHelper(tabId, e.target, selectionStart, selectionEnd, type, name);
+                    lastWeightInfo.init(weights).then(() => {
+                        lastWeightInfo.show(e.pageY + 15, e.pageX);
+                    })
                 }
             }
         });
