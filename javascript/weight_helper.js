@@ -174,29 +174,29 @@ class WeightHelper {
     LBW_WEIGHT_SETTINGS = {
         lora: {
             "": {
-                enable_blocks: [1,0,1,1,0,1,1,0,1,1,0,0,0,1,0,0,0,1,1,1,1,1,1,1,1,1],
+                masks: [1,0,1,1,0,1,1,0,1,1,0,0,0,1,0,0,0,1,1,1,1,1,1,1,1,1],
                 block_points: ["BASE", "IN01-IN04", "IN05-IN08", "M00", "OUT03-OUT06", "OUT07-OUT11"]
             },
             "sdxl": {
-                enable_blocks: [1,0,0,0,0,1,1,0,1,1,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0],
+                masks: [1,0,0,0,0,1,1,0,1,1,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0],
                 block_points: ["BASE", "IN04-IN08", "M00", "OUT00-OUT05"]
             },
             "all": {
-                enable_blocks: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                masks: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
                 block_points: ["BASE", "IN00-IN05", "IN06-IN11", "M00", "OUT00-OUT05", "OUT06-OUT11"]
             }
         },
         lyco: {
             "": {
-                enable_blocks: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                masks: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
                 block_points: ["BASE", "IN00-IN05", "IN06-IN11", "M00", "OUT00-OUT05", "OUT06-OUT11"]
             },
             "sdxl": {
-                enable_blocks: [1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0],
+                masks: [1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0],
                 block_points: ["BASE", "IN00-IN03", "IN04-IN08", "M00", "OUT00-OUT03", "OUT04-OUT08"]
             },
             "all": {
-                enable_blocks: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                masks: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
                 block_points: ["BASE", "IN00-IN05", "IN06-IN11", "M00", "OUT00-OUT05", "OUT06-OUT11"]
             }
         }
@@ -266,7 +266,7 @@ class WeightHelper {
                         const blockPoints = optBlockPoints.split(',').map(v => {
                             return v.trim().replace(/\d+/g, match => match.length === 1 ? `0${match}` : match);
                         });
-                        this.LBW_WEIGHT_SETTINGS[weightTag.type][weightType.type].block_points = blockPoints;
+                        this.#getLbwWeightSetting(weightTag.type, weightType.type).block_points = blockPoints;
                     }
                 } catch (e) {
                     console.warn(`${weightTag.type}_${weightType.type} block definition format is invalid.`, e);
@@ -319,8 +319,7 @@ class WeightHelper {
                 this.lbwPresetsMap[weightTag.type][weightType.type] = lbwPreset;
                 this.lbwPresetsValueKeyMap[weightTag.type][weightType.type] = lbwPresetValueKey;
 
-                const enableBlocks = this.LBW_WEIGHT_SETTINGS[weightTag.type][weightType.type].enable_blocks;
-                const blockLength = enableBlocks.filter((b) => b == 1).length;
+                const blockLength = this.#getLbwWeightSetting().masks.filter((b) => b == 1).length;
                 for (const line of lbwPresets) {
                     const kv = line.split(":");
                     if (kv.length == 2 && kv[1].split(",").length == blockLength) {
@@ -372,13 +371,12 @@ class WeightHelper {
 
                 const lbwDefault = this.WEIGHT_SETTINGS.lbw.default;
                 for (const weightType of this.LBW_WEIGHT_TYPES) {
-                    const lbwWeightSetting = this.LBW_WEIGHT_SETTINGS[this.weightTag][weightType.type];
-                    const enableBlocks = lbwWeightSetting.enable_blocks;
-                    if (blocks.length === enableBlocks.filter((b) => b == 1).length) {
+                    const masks = this.#getLbwWeightSetting(this.weightTag, weightType.type).masks;
+                    if (blocks.length === masks.filter((b) => b == 1).length) {
                         this.weightType = weightType.type;
                         isTypeDetermined = true;
                         let refIdx = 0;
-                        for (let enable of enableBlocks) {
+                        for (let enable of masks) {
                             if (enable) {
                                 this.weightData.lbw.push(parseInt(blocks[refIdx] * 100));
                                 refIdx++;
@@ -408,8 +406,8 @@ class WeightHelper {
             }
         }
         if (!this.weightData.lbw.length) {
-            const enableBlocks = this.LBW_WEIGHT_SETTINGS[this.weightTag][this.weightType].enable_blocks;
-            for (let _ of enableBlocks) {
+            const masks = this.#getLbwWeightSetting().masks;
+            for (let _ of masks) {
                 this.weightData.lbw.push(100);
             }
         }
@@ -681,13 +679,12 @@ class WeightHelper {
                 this.domLbwGroupWrapper.style.display = "flex";
                 this.domBookmarkIcon.style.visibility = "";
 
-                const lbwWeightSetting = this.LBW_WEIGHT_SETTINGS[this.weightTag][this.weightType];
-                const enableBlocks = lbwWeightSetting.enable_blocks;
+                const masks = this.#getLbwWeightSetting().masks;
                 let values;
                 if (selectVal === "") {
                     values = [];
-                    for (let idx = 0; idx < enableBlocks.length; idx++) {
-                        if (enableBlocks[idx] === 1) {
+                    for (let idx = 0; idx < masks.length; idx++) {
+                        if (masks[idx] === 1) {
                             const val = this.weightData.lbw[idx];
                             values.push(val);
                         }
@@ -696,9 +693,9 @@ class WeightHelper {
                     values = selectVal.split(",").map(v => Math.round(parseFloat(v) * 100));
                 }
                 let refIdx = 0;
-                for (let idx = 0; idx < enableBlocks.length; idx++) {
+                for (let idx = 0; idx < masks.length; idx++) {
                     let val = 0;
-                    if (enableBlocks[idx] === 1) {
+                    if (masks[idx] === 1) {
                         val = values[refIdx];
                         refIdx++;
                     }
@@ -772,7 +769,7 @@ class WeightHelper {
             this.domLbwGroupWrapper.removeChild(this.domLbwGroupWrapper.firstChild);
         }
 
-        const lbwWeightSetting = this.LBW_WEIGHT_SETTINGS[this.weightTag][this.weightType];
+        const lbwWeightSetting = this.#getLbwWeightSetting();
 
         const labelMap = {};
         for (let idx = 0; idx < this.WEIGHT_SETTINGS.lbw.labels.length; idx++) {
@@ -788,7 +785,7 @@ class WeightHelper {
             const lbwGroup = document.createElement('div');
             lbwGroup.className = 'border f g-2 col';
             for (let idx = pointStart; idx <= pointEnd; idx++) {
-                if (lbwWeightSetting.enable_blocks[idx] == 1) {
+                if (lbwWeightSetting.masks[idx] == 1) {
                     lbwGroup.appendChild(this.weightUIs.lbw.dom[idx]);
                 }
             }
@@ -800,9 +797,12 @@ class WeightHelper {
         if (this.weightData.special) {
             return this.weightData.special;
         }
-        const lbwWeightSetting = this.LBW_WEIGHT_SETTINGS[this.weightTag][this.weightType];
-        const enableBlocks = lbwWeightSetting.enable_blocks;
-        return this.weightData.lbw.filter((_, i) => enableBlocks[i] === 1).map(v => v / 100);
+        const masks = this.#getLbwWeightSetting().masks;
+        return this.weightData.lbw.filter((_, i) => masks[i] === 1).map(v => v / 100);
+    }
+
+    #getLbwWeightSetting(weightTag = this.weightTag, weightType = this.weightType) {
+        return this.LBW_WEIGHT_SETTINGS[weightTag][weightType];
     }
 
     #makeSlider(group, i) {
@@ -1038,9 +1038,9 @@ class WeightHelper {
         }
 
         let lbwWeights = [];
-        const enableBlocks = this.LBW_WEIGHT_SETTINGS[this.weightTag][this.weightType].enable_blocks;
-        for (let idx = 0; idx < enableBlocks.length; idx++) {
-            if (enableBlocks[idx]) {
+        const masks = this.#getLbwWeightSetting().masks;
+        for (let idx = 0; idx < masks.length; idx++) {
+            if (masks[idx]) {
                 lbwWeights.push(this.weightData.lbw[idx]);
             }
         }
@@ -1091,10 +1091,9 @@ class WeightHelper {
         localStorage.setItem("weight_helper_type", JSON.stringify(weight_helper_type));
 
         const lbwDefault = this.WEIGHT_SETTINGS.lbw.default;
-        const lbwWeightSetting = this.LBW_WEIGHT_SETTINGS[this.weightTag][this.weightType];
-        const enableBlocks = lbwWeightSetting.enable_blocks;
-        for (let idx = 0; idx < enableBlocks.length; idx++) {
-            if (enableBlocks[idx] !== 1) {
+        const masks = this.#getLbwWeightSetting().masks;
+        for (let idx = 0; idx < masks.length; idx++) {
+            if (masks[idx] !== 1) {
                 this.weightData.lbw[idx] = lbwDefault;
             }
         }
