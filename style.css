@@ -166,6 +166,7 @@
     margin: 3px 0px 3px 4px;
 }
 #weight-helper label.radio-label {
+    min-width: 28px;
     padding-left: 0px;
 }
 #weight-helper .preview-pane {

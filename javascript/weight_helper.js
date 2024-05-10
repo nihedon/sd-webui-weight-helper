@@ -170,13 +170,13 @@ class WeightHelper {
         { type: "lyco", label: "LyCORIS" }
     ];
     LBW_WEIGHT_SD_VERSIONS = [
-        { type: "sd1", label: "SD1" },
+        { type: "sd", label: "SD" },
         { type: "sdxl", label: "SDXL" },
         { type: "all", label: "ALL" }
     ];
     LBW_WEIGHT_SETTINGS = {
         lora: {
-            "sd1": {
+            "sd": {
                 masks: [1,0,1,1,0,1,1,0,1,1,0,0,0,1,0,0,0,1,1,1,1,1,1,1,1,1],
                 block_points: ["BASE", "IN01-IN04", "IN05-IN08", "M00", "OUT03-OUT06", "OUT07-OUT11"]
             },
@@ -190,7 +190,7 @@ class WeightHelper {
             }
         },
         lyco: {
-            "sd1": {
+            "sd": {
                 masks: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
                 block_points: ["BASE", "IN00-IN05", "IN06-IN11", "M00", "OUT00-OUT05", "OUT06-OUT11"]
             },
@@ -288,30 +288,16 @@ class WeightHelper {
 
     async init(multiplier) {
         let loadedSdVersion;
-        let loadedNetworkModule;
         if (this.nameHash in weight_helper_type) {
             loadedSdVersion = weight_helper_type[this.nameHash].sdVersion;
-            loadedNetworkModule = weight_helper_type[this.nameHash].networkModule;
+            this.networkModule = weight_helper_type[this.nameHash].networkModule;
         } else {
             const res = await postAPI("/whapi/v1/get_lora_info?key=" + encodeURIComponent(this.name), null);
-            loadedSdVersion = res[0];
-            if (loadedSdVersion) {
-                loadedSdVersion = loadedSdVersion.toLowerCase();
-            } else {
-                loadedSdVersion = "all";
+            loadedSdVersion = res[0] ? res[0] : "all";
+            const loadedNetworkModule = res[1];
+            if (this.networkModule !== "lyco" && loadedNetworkModule) {
+                this.networkModule = loadedNetworkModule
             }
-            loadedNetworkModule = res[1];
-            if (loadedNetworkModule) {
-                if (loadedNetworkModule.indexOf("lora") >= 0) {
-                    loadedNetworkModule = "lora";
-                } else if (loadedNetworkModule.indexOf("lycoris") >= 0) {
-                    loadedNetworkModule = "lyco";
-                }
-            }
-        }
-
-        if (loadedNetworkModule) {
-            this.networkModule = loadedNetworkModule;
         }
 
         this.WEIGHT_SETTINGS.start.max = sampling_steps;

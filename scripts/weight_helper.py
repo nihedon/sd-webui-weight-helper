@@ -54,9 +54,25 @@ class WeightHelperAPI:
                 lora_on_disk = next((v for v in networks.available_network_aliases.values() if v.alias == key), None)
             if lora_on_disk:
                 sd_version = lora_on_disk.sd_version.name
-                if sd_version == "Unknown":
-                    sd_version = None
+
+                if sd_version and sd_version != "Unknown":
+                    sd_version = sd_version.lower()
+                    if sd_version == "sd1" or sd_version == "sd2":
+                        sd_version = "sd"
+                else:
+                    if shared.sd_model.is_sdxl:
+                        sd_version = "sdxl"
+                    else:
+                        sd_version = "sd"
+
                 ss_network_module = lora_on_disk.metadata.get("ss_network_module")
+                if ss_network_module and ss_network_module != "Unknown":
+                    if ss_network_module == "lycoris.kohya":
+                        ss_network_module = "lyco"
+                    else:
+                        ss_network_module = "lora"
+                else:
+                    ss_network_module = None
 
         return sd_version, ss_network_module
 
@@ -162,7 +178,7 @@ def on_ui_settings():
             "choices": ["Top Right", "Bottom Right", "Top Left", "Bottom Left"]
         }),
 
-        "weight_helper_lbw_lora_sd1_block_points": shared.OptionInfo(
+        "weight_helper_lbw_lora_sd_block_points": shared.OptionInfo(
             "BASE, IN01-IN04, IN05-IN08, M00, OUT03-OUT06, OUT07-OUT11",
             "Advanced option - LoRA block points"
         ).info(
@@ -180,7 +196,7 @@ def on_ui_settings():
         ).info(
             "default: BASE, IN00-IN05, IN06-IN11, M00, OUT00-OUT05, OUT06-OUT11"
         ),
-        "weight_helper_lbw_lyco_sd1_block_points": shared.OptionInfo(
+        "weight_helper_lbw_lyco_sd_block_points": shared.OptionInfo(
             "BASE, IN00-IN05, IN06-IN11, M00, OUT00-OUT05, OUT06-OUT11",
             "Advanced option - LyCORIS block points"
         ).info(
