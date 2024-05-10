@@ -1,4 +1,6 @@
-<img src="https://github.com/nihedon/sd-webui-weight-helper/assets/66118290/f7079e1c-3b2a-426c-b3a2-1a7ccf57cab2" height="600px">
+[English](README.md) | [日本語](README_JP.md)
+
+<img src="https://github.com/nihedon/sd-webui-weight-helper/assets/66118290/729fee90-90cc-4db3-9a9f-1655a57b9c8e" height="600px">
 
 # Weight Helper 拡張機能
 
