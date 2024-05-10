@@ -1,11 +1,10 @@
 import os
-import functools
 import gradio as gr
 import importlib
 import json
 import urllib.parse
 from fastapi import FastAPI
-from modules import script_callbacks, shared, util
+from modules import script_callbacks, shared
 
 prefix = "/whapi/v1"
 
@@ -35,7 +34,7 @@ class WeightHelperAPI:
         return cls.instance
 
     def __init__(self):
-        self.lister = util.MassFileLister()
+        pass
 
     def __get_networks(self):
         try:
@@ -50,6 +49,9 @@ class WeightHelperAPI:
         networks = self.__get_networks()
         if networks:
             lora_on_disk = networks.available_network_aliases.get(key)
+            if not lora_on_disk:
+                # sdnext
+                lora_on_disk = next((v for v in networks.available_network_aliases.values() if v.alias == key), None)
             if lora_on_disk:
                 sd_version = lora_on_disk.sd_version.name
                 if sd_version == "Unknown":
@@ -66,6 +68,9 @@ class WeightHelperAPI:
         networks = self.__get_networks()
         if networks:
             lora_on_disk = networks.available_network_aliases.get(key)
+            if not lora_on_disk:
+                # sdnext
+                lora_on_disk = next((v for v in networks.available_network_aliases.values() if v.alias == key), None)
             if lora_on_disk:
                 path, _ = os.path.splitext(lora_on_disk.filename)
                 name = lora_on_disk.name
@@ -87,7 +92,7 @@ class WeightHelperAPI:
         if path:
             potential_files = sum([[f"{path}.{ext}", f"{path}.preview.{ext}"] for ext in allowed_preview_extensions], [])
             for file in potential_files:
-                if self.lister.exists(file):
+                if os.path.exists(file):
                     return self.__link_preview(file)
         return "./file=html/card-no-preview.png"
 
@@ -98,7 +103,7 @@ class WeightHelperAPI:
     def __find_description(self, path):
         if path:
             for file in [f"{path}.txt", f"{path}.description.txt"]:
-                if self.lister.exists(file):
+                if os.path.exists(file):
                     try:
                         with open(file, "r", encoding="utf-8", errors="replace") as f:
                             return f.read()
@@ -106,11 +111,11 @@ class WeightHelperAPI:
                         pass
         return None
 
-    @functools.cache
+    #@functools.cache
     def __find_civitai_model_id(self, path):
         if path:
             civitai_info = f"{path}.civitai.info"
-            if self.lister.exists(civitai_info):
+            if os.path.exists(civitai_info):
                 try:
                     with open(civitai_info, "r", encoding="utf-8", errors="replace") as f:
                         return json.load(f).get("modelId")

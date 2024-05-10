@@ -34,10 +34,9 @@
 #weight-helper > header .bookmark::before {
     content: "★";
     cursor: pointer;
-    font-size: calc(110%);
+    font-size: calc(130%);
 }
 #weight-helper > header .bookmark.unlike::before {
-    -webkit-text-stroke: 0.7px var(--checkbox-border-color-focus);
     color: var(--checkbox-background-color);
 }
 #weight-helper > header .bookmark.like::before {

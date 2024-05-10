@@ -1164,7 +1164,8 @@ class WeightHelper {
         const modelId = res[4];
         if (previewPath) {
             const pane = document.createElement("div");
-            pane.className = "preview-pane";
+            pane.className = "preview-pane card";
+            pane.dataset.name = loraName;
 
             const img = document.createElement("img");
             img.className = "preview";
@@ -1183,7 +1184,7 @@ class WeightHelper {
                 buttonTop.appendChild(civitaiButton);
             }
 
-            if (hasMetadata) {
+            if (typeof extraNetworksRequestMetadata === "function" && hasMetadata) {
                 const metadataButton = document.createElement("div");
                 metadataButton.className = "metadata-btn card-btn";
                 metadataButton.setAttribute("title", "Show internal metadata");
@@ -1191,11 +1192,13 @@ class WeightHelper {
                 buttonTop.appendChild(metadataButton);
             }
 
-            const editButton = document.createElement("div");
-            editButton.className = "edit-btn card-btn";
-            editButton.setAttribute("title", "Edit metadata");
-            editButton.addEventListener("click", (event) => extraNetworksEditUserMetadata(event, this.tabId, 'lora', loraName));
-            buttonTop.appendChild(editButton);
+            if (typeof extraNetworksEditUserMetadata === "function") {
+                const editButton = document.createElement("div");
+                editButton.className = "edit-btn card-btn";
+                editButton.setAttribute("title", "Edit metadata");
+                editButton.addEventListener("click", (event) => extraNetworksEditUserMetadata(event, this.tabId, 'lora', loraName));
+                buttonTop.appendChild(editButton);
+            }
 
             if (description) {
                 const buttonBottom = document.createElement("div");
