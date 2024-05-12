@@ -1,3 +1,4 @@
+import ast
 import os
 import gradio as gr
 import importlib
@@ -24,78 +25,104 @@ class WeightHelperAPI:
         async def _(key: str):
             return instance.get_lora_info(key)
 
-        @app.post(prefix + "/get_preview_info")
-        async def _(key: str):
-            return instance.get_preview_info(key)
-
     def __new__(cls, *args, **kwargs):
         if not cls.instance:
             cls.instance = super(WeightHelperAPI, cls).__new__(cls, *args, **kwargs)
         return cls.instance
 
     def __init__(self):
+        self.network = importlib.import_module("extensions-builtin.Lora.network")
         pass
 
-    def __get_networks(self):
+    def __get_networks_lora(self):
         try:
             return importlib.import_module("extensions-builtin.Lora.ui_extra_networks_lora").networks
         except Exception:
             return None
 
     def get_lora_info(self, key):
-        sd_version = None
-        ss_network_module = None
-
-        networks = self.__get_networks()
-        if networks:
-            lora_on_disk = networks.available_network_aliases.get(key)
-            if not lora_on_disk:
-                # sdnext
-                lora_on_disk = next((v for v in networks.available_network_aliases.values() if v.alias == key), None)
-            if lora_on_disk:
-                sd_version = lora_on_disk.sd_version.name
-
-                if sd_version and sd_version != "Unknown":
-                    sd_version = sd_version.lower()
-                    if sd_version == "sd1" or sd_version == "sd2":
-                        sd_version = "sd"
-                else:
-                    if shared.sd_model.is_sdxl:
-                        sd_version = "sdxl"
-                    else:
-                        sd_version = "sd"
-
-                ss_network_module = lora_on_disk.metadata.get("ss_network_module")
-                if ss_network_module and ss_network_module != "Unknown":
-                    if ss_network_module == "lycoris.kohya":
-                        ss_network_module = "lyco"
-                    else:
-                        ss_network_module = "lora"
-                else:
-                    ss_network_module = None
-
-        return sd_version, ss_network_module
-
-    def get_preview_info(self, key):
-        name = key
         lora_on_disk = None
-        path = None
+        model_name = key
+        sd_version = None
+        ckpt_version = None
+        network_module = None
+        model_path = None
 
-        networks = self.__get_networks()
-        if networks:
-            lora_on_disk = networks.available_network_aliases.get(key)
+        networks_lora = self.__get_networks_lora()
+        if networks_lora:
+            lora_on_disk = networks_lora.available_network_aliases.get(key)
             if not lora_on_disk:
                 # sdnext
-                lora_on_disk = next((v for v in networks.available_network_aliases.values() if v.alias == key), None)
+                lora_on_disk = next((v for v in networks_lora.available_network_aliases.values() if v.alias == key), None)
             if lora_on_disk:
-                path, _ = os.path.splitext(lora_on_disk.filename)
-                name = lora_on_disk.name
+                sd_version, ckpt_version = self.__get_sd_version(lora_on_disk)
+                network_module = self.__get_network_module(lora_on_disk)
+                model_path, _ = os.path.splitext(lora_on_disk.filename)
+                model_name = lora_on_disk.name
 
-        preview = self.__find_preview(path)
+        preview_url = self.__find_preview(model_path)
         has_metadata = self.__find_metadata(lora_on_disk)
-        description = self.__find_description(path)
-        modelId = self.__find_civitai_model_id(path)
-        return name, preview, has_metadata, description, modelId
+        description = self.__find_description(model_path)
+        model_id = self.__find_civitai_model_id(model_path)
+
+        return {
+            "sd_version": sd_version,
+            "ckpt_version": ckpt_version,
+            "network_module": network_module,
+            "model_id": model_id,
+            "model_name": model_name,
+            "preview_url": preview_url,
+            "has_metadata": has_metadata,
+            "description": description,
+        }
+
+    def __get_sd_version(self, lora):
+        sd_version = lora.sd_version.name
+        if sd_version:
+            if sd_version == self.network.SdVersion.SD1.name or sd_version == self.network.SdVersion.SD2.name:
+                sd_version = "SD"
+            elif sd_version == self.network.SdVersion.SDXL.name:
+                sd_version = "SDXL"
+            else:
+                sd_version = None
+        else:
+            sd_version = None
+
+        if shared.sd_model.is_sd1 or shared.sd_model.is_sd2:
+            model_version = "SD"
+        elif shared.sd_model.is_sdxl:
+            model_version = "SDXL"
+        else:
+            model_version = None
+
+        return sd_version, model_version
+
+    def __get_network_module(self, lora):
+        metadata = lora.metadata
+        ss_network_module = metadata.get("ss_network_module")
+        if not ss_network_module or ss_network_module == "Unknown":
+            return None
+        if ss_network_module.find("lycoris.kohya") >= 0:
+            return "LyCORIS"
+        if ss_network_module.find("locon.locon_kohya") >= 0:
+            return "LyCORIS"
+
+        ss_network_args = metadata.get("ss_network_args", {})
+        if type(ss_network_args) is str:
+            try:
+                ss_network_args = ast.literal_eval(ss_network_args)
+            except Exception:
+                ss_network_args = {}
+
+        conv_dim = int(ss_network_args.get("conv_dim", "-1"))
+        if (conv_dim >= 0):
+            return "LoRA-C3Lier"
+
+        conv_alpha = int(ss_network_args.get("conv_alpha", "-1"))
+        if (conv_alpha >= 0):
+            return "LoRA-C3Lier"
+
+        return "LoRA-LierLa"
 
     def __link_preview(self, filename):
         quoted_filename = urllib.parse.quote(filename.replace('\\', '/'))
@@ -154,7 +181,14 @@ def on_ui_settings():
             "In exchange for no longer being updated in real-time, "
             "you can use 'undo' to revert the text to its previous state."
         ),
-        'weight_helper_fix_lora': shared.OptionInfo(True, 'Fix tag name to \'lora\' after editing'),
+        'weight_helper_use_lyco_tag': shared.OptionInfo(False, 'Use \'lyco\' tag for LyCORIS. (for legacy compatibility)'),
+        'weight_helper_use_default_setting': shared.OptionInfo(
+            False, "Use default setting for unrecognized LoRA types."
+        ).info(
+            "When enabled, this option sets the LoRA type to 'LoRA-LierLa' if the tag is 'lora', "
+            "or 'LyCORIS' if the tag is 'lyco', in cases where the LoRA type cannot be determined. "
+            "Additionally, if the LoRA's SD version cannot be identified, it will be set to match the version of the currently applied checkpoint."
+        ),
 
         "weight_helper_te_min": shared.OptionInfo(0, "TEnc min value", gr.Number),
         "weight_helper_te_max": shared.OptionInfo(1, "TEnc max value", gr.Number),
@@ -178,41 +212,29 @@ def on_ui_settings():
             "choices": ["Top Right", "Bottom Right", "Top Left", "Bottom Left"]
         }),
 
-        "weight_helper_lbw_lora_sd_block_points": shared.OptionInfo(
+        "weight_helper_lbw_lierla_sd_block_points": shared.OptionInfo(
             "BASE, IN01-IN04, IN05-IN08, M00, OUT03-OUT06, OUT07-OUT11",
-            "Advanced option - LoRA block points"
+            "Advanced option - LoRA-LierLa block points"
         ).info(
             "default: BASE, IN01-IN04, IN05-IN08, M00, OUT03-OUT06, OUT07-OUT11"
         ),
-        "weight_helper_lbw_lora_sdxl_block_points": shared.OptionInfo(
+        "weight_helper_lbw_c3lier_lyco_sd_block_points": shared.OptionInfo(
+            "BASE, IN00-IN05, IN06-IN11, M00, OUT00-OUT05, OUT06-OUT11",
+            "Advanced option - LoRA-C3Lier or LyCORIS block points"
+        ).info(
+            "default: BASE, IN00-IN05, IN06-IN11, M00, OUT00-OUT05, OUT06-OUT11"
+        ),
+        "weight_helper_lbw_lierla_sdxl_block_points": shared.OptionInfo(
             "BASE, IN04-IN08, M00, OUT00-OUT05",
-            "Advanced option - LoRA(SDXL) block points"
+            "Advanced option - SDXL LoRA-LierLa block points"
         ).info(
             "default: BASE, IN04-IN08, M00, OUT00-OUT05"
         ),
-        "weight_helper_lbw_lora_all_block_points": shared.OptionInfo(
-            "BASE, IN00-IN05, IN06-IN11, M00, OUT00-OUT05, OUT06-OUT11",
-            "Advanced option - LoRA(Show ALL) bll block points"
-        ).info(
-            "default: BASE, IN00-IN05, IN06-IN11, M00, OUT00-OUT05, OUT06-OUT11"
-        ),
-        "weight_helper_lbw_lyco_sd_block_points": shared.OptionInfo(
-            "BASE, IN00-IN05, IN06-IN11, M00, OUT00-OUT05, OUT06-OUT11",
-            "Advanced option - LyCORIS block points"
-        ).info(
-            "default: BASE, IN00-IN05, IN06-IN11, M00, OUT00-OUT05, OUT06-OUT11"
-        ),
-        "weight_helper_lbw_lyco_sdxl_block_points": shared.OptionInfo(
+        "weight_helper_lbw_c3lier_lyco_sdxl_block_points": shared.OptionInfo(
             "BASE, IN00-IN03, IN04-IN08, M00, OUT00-OUT03, OUT04-OUT08",
-            "Advanced option - LyCORIS(SDXL) block points"
+            "Advanced option - SDXL LoRA-C3Lier or LyCORIS block points"
         ).info(
             "default: BASE, IN00-IN03, IN04-IN08, M00, OUT00-OUT03, OUT04-OUT08"
-        ),
-        "weight_helper_lbw_lyco_all_block_points": shared.OptionInfo(
-            "BASE, IN00-IN05, IN06-IN11, M00, OUT00-OUT05, OUT06-OUT11",
-            "Advanced option - LyCORIS(Show ALL) block points"
-        ).info(
-            "default: BASE, IN00-IN05, IN06-IN11, M00, OUT00-OUT05, OUT06-OUT11"
         )
     }))
 
