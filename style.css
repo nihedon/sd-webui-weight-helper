@@ -219,6 +219,11 @@
     content: "🌐";
     font-size: calc(75%);
 }
+#weight-helper .preview-pane .add-trigger-btn::before,
+#weight-helper .preview-pane .add-trigger-btn::after {
+    content: "🔫";
+    font-size: calc(75%);
+}
 #weight-helper .preview-pane .description-close-btn::before,
 #weight-helper .preview-pane .description-close-btn::after {
     content: "❌";

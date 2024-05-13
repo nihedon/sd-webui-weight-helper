@@ -32,7 +32,6 @@ class WeightHelperAPI:
 
     def __init__(self):
         self.network = importlib.import_module("extensions-builtin.Lora.network")
-        pass
 
     def __get_networks_lora(self):
         try:
@@ -47,6 +46,8 @@ class WeightHelperAPI:
         ckpt_version = None
         network_module = None
         model_path = None
+        model_id = None
+        trigger_words = []
 
         networks_lora = self.__get_networks_lora()
         if networks_lora:
@@ -63,13 +64,18 @@ class WeightHelperAPI:
         preview_url = self.__find_preview(model_path)
         has_metadata = self.__find_metadata(lora_on_disk)
         description = self.__find_description(model_path)
-        model_id = self.__find_civitai_model_id(model_path)
+        civitai_info = self.__find_civitai_info(model_path)
+        if civitai_info:
+            model_id = civitai_info.get("modelId")
+            trigger_words = ",".join(civitai_info.get("trainedWords")).split(",")
+            trigger_words = [w.strip() for w in trigger_words if w]
 
         return {
             "sd_version": sd_version,
             "ckpt_version": ckpt_version,
             "network_module": network_module,
             "model_id": model_id,
+            "trigger_words": trigger_words,
             "model_name": model_name,
             "preview_url": preview_url,
             "has_metadata": has_metadata,
@@ -155,13 +161,13 @@ class WeightHelperAPI:
         return None
 
     #@functools.cache
-    def __find_civitai_model_id(self, path):
+    def __find_civitai_info(self, path):
         if path:
             civitai_info = f"{path}.civitai.info"
             if os.path.exists(civitai_info):
                 try:
                     with open(civitai_info, "r", encoding="utf-8", errors="replace") as f:
-                        return json.load(f).get("modelId")
+                        return json.load(f)
                 except OSError:
                     pass
         return None

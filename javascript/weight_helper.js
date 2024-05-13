@@ -518,6 +518,9 @@ class WeightHelper {
     #makeContextMenuHeader() {
         this.domCustomContextMenu = document.createElement('div');
         this.domCustomContextMenu.id = 'weight-helper';
+        this.domCustomContextMenu.addEventListener("click", (e) => {
+            e.stopPropagation();
+        })
 
         let scale = opts.weight_helper_context_menu_scale;
         if (scale <= 0) {
@@ -1281,6 +1284,7 @@ class WeightHelper {
         const hasMetadata = this.loraInfo.has_metadata;
         const description = this.loraInfo.description;
         const modelId = this.loraInfo.model_id;
+        const triggerWords = this.loraInfo.trigger_words ?? [];
         if (previewUrl) {
             const pane = document.createElement("div");
             pane.className = "preview-pane card";
@@ -1295,19 +1299,11 @@ class WeightHelper {
             buttonTop.className = "action-row button-top";
             pane.appendChild(buttonTop);
 
-            if (modelId) {
-                const civitaiButton = document.createElement("div");
-                civitaiButton.className = "civitai-btn card-btn";
-                civitaiButton.setAttribute("title", "Open civitai");
-                civitaiButton.addEventListener("click", () => window.open(`https://civitai.com/models/${modelId}`, '_blank'));
-                buttonTop.appendChild(civitaiButton);
-            }
-
             if (typeof extraNetworksRequestMetadata === "function" && hasMetadata) {
                 const metadataButton = document.createElement("div");
                 metadataButton.className = "metadata-btn card-btn";
                 metadataButton.setAttribute("title", "Show internal metadata");
-                metadataButton.addEventListener("click", (event) => extraNetworksRequestMetadata(event, 'lora', modelName));
+                metadataButton.addEventListener("click", (e) => extraNetworksRequestMetadata(e, 'lora', modelName));
                 buttonTop.appendChild(metadataButton);
             }
 
@@ -1315,8 +1311,47 @@ class WeightHelper {
                 const editButton = document.createElement("div");
                 editButton.className = "edit-btn card-btn";
                 editButton.setAttribute("title", "Edit metadata");
-                editButton.addEventListener("click", (event) => extraNetworksEditUserMetadata(event, this.tabId, 'lora', modelName));
+                editButton.addEventListener("click", (e) => extraNetworksEditUserMetadata(e, this.tabId, 'lora', modelName));
                 buttonTop.appendChild(editButton);
+            }
+
+            if (modelId) {
+                const civitaiButton = document.createElement("div");
+                civitaiButton.className = "civitai-btn card-btn";
+                civitaiButton.setAttribute("title", "Open civitai");
+                civitaiButton.addEventListener("click", (e) => window.open(`https://civitai.com/models/${modelId}`, '_blank'));
+                buttonTop.appendChild(civitaiButton);
+            }
+
+            if (triggerWords.length > 0) {
+                const addTriggerButton = document.createElement("div");
+                addTriggerButton.className = "add-trigger-btn card-btn";
+                addTriggerButton.setAttribute("title", "Add trigger words");
+                addTriggerButton.addEventListener("click", (e) => {
+                    const addWords = ", " + triggerWords.join(", ");
+                    if (!this.usingExecCommand) {
+                        const head = this.textarea.value.substring(0, this.lastSelectionEnd);
+                        const tail = this.textarea.value.substring(this.lastSelectionEnd);
+                        if (tail && tail.indexOf(" ") > 0) {
+                            tail = " " + tail;
+                        }
+                        this.textarea.value = head + addWords + tail;
+                    } else {
+                        let tacActiveInOrg = undefined;
+                        if (typeof TAC_CFG !== 'undefined' && TAC_CFG) {
+                            tacActiveInOrg = TAC_CFG.activeIn.global
+                            TAC_CFG.activeIn.global = false;
+                        }
+                        this.textarea.focus();
+                        this.textarea.setSelectionRange(this.lastSelectionEnd, this.lastSelectionEnd);
+                        document.execCommand("insertText", false, addWords);
+                        if (typeof TAC_CFG !== 'undefined' && TAC_CFG) {
+                            TAC_CFG.activeIn.global = tacActiveInOrg;
+                        }
+                    }
+                    addTriggerButton.remove();
+                });
+                buttonTop.appendChild(addTriggerButton);
             }
 
             if (description) {
@@ -1386,7 +1421,7 @@ class WeightHelper {
             }
         }
         document.body.addEventListener('click', this.close);
-        document.addEventListener('keyup', this.escape);
+        document.body.addEventListener('keyup', this.escape);
         WeightHelper.last_instance = this;
 
         if (opts.weight_helper_show_preview) {
@@ -1401,7 +1436,6 @@ class WeightHelper {
             if (this.domCustomContextMenu.contains(e.target)) return;
 
             if (e.target.id === `${this.tabId}_token_button`) return;
-            if (e.target.id === "weight-helper-show-extra-opt-button") return;
             if (e.target.id === `${this.tabId}_lora_edit_user_metadata_button`) return;
             if (e.target.className === "global-popup-close") return;
 
@@ -1437,7 +1471,7 @@ class WeightHelper {
         WeightHelper.last_instance = undefined;
         this.domCustomContextMenu.remove();
         document.body.removeEventListener("click", this.close);
-        document.removeEventListener('keyup', this.escape);
+        document.body.removeEventListener('keyup', this.escape);
     }
 }
 
