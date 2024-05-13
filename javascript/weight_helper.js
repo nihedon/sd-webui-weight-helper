@@ -251,6 +251,8 @@ class WeightHelper {
     domPresetSelect = null;
     domLbwGroupWrapper = null;
 
+    releaseFunctions = [];
+
     static attach(textarea) {
         textarea.addEventListener('contextmenu', (e) => {
             if (!opts.weight_helper_enabled) {
@@ -518,9 +520,7 @@ class WeightHelper {
     #makeContextMenuHeader() {
         this.domCustomContextMenu = document.createElement('div');
         this.domCustomContextMenu.id = 'weight-helper';
-        this.domCustomContextMenu.addEventListener("click", (e) => {
-            e.stopPropagation();
-        })
+        this.#bind(this.domCustomContextMenu, "click", (e) => e.stopPropagation());
 
         let scale = opts.weight_helper_context_menu_scale;
         if (scale <= 0) {
@@ -529,6 +529,11 @@ class WeightHelper {
         this.domCustomContextMenu.style.transform = `scale(${scale})`;
 
         const header = document.createElement('header');
+        this.#bind(header, "mousedown", (e) => {
+            this.isDragging = true;
+            this.offsetX = e.clientX - this.domCustomContextMenu.getBoundingClientRect().left;
+            this.offsetY = e.clientY - this.domCustomContextMenu.getBoundingClientRect().top;
+        });
 
         const headerTitle = document.createElement('span');
         header.appendChild(headerTitle);
@@ -543,7 +548,7 @@ class WeightHelper {
             this.domBookmarkIcon.style.visibility = "hidden";
         }
         headerTitle.prepend(this.domBookmarkIcon);
-        this.domBookmarkIcon.addEventListener("click", () => {
+        this.#bind(this.domBookmarkIcon, "click", () => {
             const masks = this.#getLbwWeightSetting().masks;
             const weightDataHash = this.weightData.hashCode(masks);
             const isBookmarked = this.currentBookmarkSet.has(weightDataHash);
@@ -581,7 +586,7 @@ class WeightHelper {
         pageLeft.textContent = "<";
         pageLeft.className = "icon";
         pageWrapper.appendChild(pageLeft);
-        pageLeft.addEventListener("click", () => {
+        this.#bind(pageLeft, "click", () => {
             if (this.historyIndex <= 0) {
                 return;
             }
@@ -595,7 +600,7 @@ class WeightHelper {
         pageRight.textContent = ">";
         pageRight.className = "icon";
         pageWrapper.appendChild(pageRight);
-        pageRight.addEventListener("click", () => {
+        this.#bind(pageRight, "click", () => {
             if (this.historyIndex >= this.currentHistory.length - 1) {
                 return;
             }
@@ -605,15 +610,7 @@ class WeightHelper {
 
         this.domCustomContextMenu.appendChild(header);
 
-        this.domCustomContextMenu.addEventListener('mousedown', (e) => {
-            if (e.target.closest('header')) {
-                this.isDragging = true;
-                this.offsetX = e.clientX - this.domCustomContextMenu.getBoundingClientRect().left;
-                this.offsetY = e.clientY - this.domCustomContextMenu.getBoundingClientRect().top;
-            }
-        });
-
-        document.addEventListener('mousemove', (e) => {
+        this.#bind(document.body, "mousemove", (e) => {
             if (!this.isDragging) return;
 
             const x = e.clientX - this.offsetX + window.scrollX;
@@ -623,7 +620,7 @@ class WeightHelper {
             this.domCustomContextMenu.style.top = y + 'px';
         });
 
-        document.addEventListener('mouseup', () => {
+        this.#bind(document.body, "mouseup", () => {
             this.isDragging = false;
         });
     }
@@ -631,7 +628,7 @@ class WeightHelper {
     #makeContextMenuBody() {
         const children = this.domCustomContextMenu.getElementsByTagName("section");
         while (children.length > 0) {
-            children[0].parentNode.removeChild(children[0]);
+            children[0].remove();
         }
         const extraOpts = [];
         let hiddenExtraOpts = 0;
@@ -674,7 +671,7 @@ class WeightHelper {
             extraButton.className = "secondary gradio-button";
             extraButton.id = "weight-helper-show-extra-opt-button";
             extraButton.textContent = "show extra options";
-            extraButton.addEventListener("click", (e) => {
+            this.#bind(extraButton, "click", (e) => {
                 e.target.remove();
                 for (const extra of extraOpts) {
                     extra.style.display = '';
@@ -723,7 +720,7 @@ class WeightHelper {
         }
         loraTypeSelect.value = selectNetworkModule;
 
-        loraTypeSelect.addEventListener("change", (e) => {
+        this.#bind(loraTypeSelect, "change", (e) => {
             this.networkModule = e.target.value;
             this.assumedLoraType = null;
             this.#makeLbwGroupWrapper();
@@ -747,7 +744,7 @@ class WeightHelper {
             sdVersionRadio.name = "weight-helper-sd_version";
             sdVersionRadio.value = sdVersion;
             sdVersionRadio.checked = sdVersion == this.#getSdVersion();
-            sdVersionRadio.addEventListener("change", (e) => {
+            this.#bind(sdVersionRadio, "change", (e) => {
                 this.sdVersion = e.target.value;
                 this.assumedSdVersion = null;
                 this.#makeLbwGroupWrapper();
@@ -776,7 +773,7 @@ class WeightHelper {
         this.domPresetSelect = document.createElement('select');
         lbwSet.appendChild(this.domPresetSelect);
 
-        this.domPresetSelect.addEventListener("change", (e) => {
+        this.#bind(this.domPresetSelect, "change", (e) => {
             const selectVal = e.target.value;
             const isSpecial = WeightHelper.SPECIAL_PRESETS.includes(selectVal);
             if (isSpecial) {
@@ -878,7 +875,7 @@ class WeightHelper {
                 }
             }
         }
-        this.domPresetSelect.value = this.#lbwWeightData();
+        this.domPresetSelect.value = this.#getLbwWeightData();
 
         while (this.domLbwGroupWrapper.firstChild) {
             this.domLbwGroupWrapper.removeChild(this.domLbwGroupWrapper.firstChild);
@@ -905,47 +902,6 @@ class WeightHelper {
                 }
             }
             this.domLbwGroupWrapper.appendChild(lbwGroup);
-        }
-    }
-
-    #lbwWeightData() {
-        if (this.weightData.special) {
-            return this.weightData.special;
-        }
-        const masks = this.#getLbwWeightSetting().masks;
-        return this.weightData.lbw.filter((_, i) => masks[i] === 1).map(v => v / 100);
-    }
-
-    #getLoraType() {
-        if (this.assumedLoraType) {
-            return this.assumedLoraType;
-        } else if (this.networkModule) {
-            return WeightHelper.NETWORK_MODULE_TO_LORA_TYPE[this.networkModule];
-        }
-        return undefined;
-    }
-
-    #getSdVersion() {
-        if (this.assumedSdVersion) {
-            return this.assumedSdVersion;
-        } else if (this.sdVersion) {
-            return this.sdVersion;
-        }
-        return this.ckptVersion;
-    }
-
-    #getLbwWeightSetting(supportType, sdVersion) {
-        if (!supportType) {
-            supportType = this.#getLoraType();
-        }
-        if (!sdVersion) {
-            sdVersion = this.#getSdVersion();
-        }
-
-        if (supportType && sdVersion) {
-            return this.LBW_WEIGHT_SETTINGS[supportType][sdVersion];
-        } else {
-            return this.LBW_WEIGHT_SETTINGS["unknown"];
         }
     }
 
@@ -987,7 +943,7 @@ class WeightHelper {
         if (labelContainer && this.WEIGHT_SETTINGS[group].default === undefined) {
             const unetVal = this.weightData[group][i];
             const useCheck = document.createElement('input');
-            useCheck.addEventListener("change", (e) => {
+            this.#bind(useCheck, "change", (e) => {
                 this.weightData[`use_${group}`] = e.target.checked;
 
                 const masks = this.#getLbwWeightSetting().masks;
@@ -1022,7 +978,7 @@ class WeightHelper {
             let lbwValues = null;
             if (lbwPresetSelect && group === "lbw") {
                 this.weightData.special = "";
-                lbwValues = this.#lbwWeightData().join(",");
+                lbwValues = this.#getLbwWeightData().join(",");
                 const supportType = WeightHelper.NETWORK_MODULE_TO_LORA_TYPE[this.networkModule];
                 if (lbwValues in this.lbwPresetsValueKeyMap[supportType][this.sdVersion]) {
                     lbwPresetSelect.value = lbwValues;
@@ -1049,13 +1005,13 @@ class WeightHelper {
             }
         }
 
-        slider.addEventListener('input', (e) => {
+        this.#bind(slider, "input", (e) => {
             const fVal = parseFloat(e.target.value);
             this.weightData[group][i] = fVal;
             updown.value = Math.round(fVal) / 100;
             changedLbwValues();
         });
-        updown.addEventListener('input', (e) => {
+        this.#bind(updown, "input", (e) => {
             const fVal = parseFloat(e.target.value);
             this.weightData[group][i] = fVal * 100;
             slider.value = Math.round(fVal * 100);
@@ -1118,7 +1074,7 @@ class WeightHelper {
             this.domPresetSelect.value = this.weightData.special;
             this.domLbwGroupWrapper.style.display = "none";
         } else {
-            const lbwValues = this.#lbwWeightData().join(",");
+            const lbwValues = this.#getLbwWeightData().join(",");
             const supportType = WeightHelper.NETWORK_MODULE_TO_LORA_TYPE[this.networkModule];
             if (lbwValues in this.lbwPresetsValueKeyMap[supportType][this.sdVersion]) {
                 this.domPresetSelect.value = lbwValues;
@@ -1137,6 +1093,47 @@ class WeightHelper {
         const weightDataHash = this.weightData.hashCode(masks);
         const isBookmarked = this.currentBookmarkSet.has(weightDataHash);
         this.#updateBookmarkedIcon(isBookmarked);
+    }
+
+    #getLbwWeightData() {
+        if (this.weightData.special) {
+            return this.weightData.special;
+        }
+        const masks = this.#getLbwWeightSetting().masks;
+        return this.weightData.lbw.filter((_, i) => masks[i] === 1).map(v => v / 100);
+    }
+
+    #getLoraType() {
+        if (this.assumedLoraType) {
+            return this.assumedLoraType;
+        } else if (this.networkModule) {
+            return WeightHelper.NETWORK_MODULE_TO_LORA_TYPE[this.networkModule];
+        }
+        return undefined;
+    }
+
+    #getSdVersion() {
+        if (this.assumedSdVersion) {
+            return this.assumedSdVersion;
+        } else if (this.sdVersion) {
+            return this.sdVersion;
+        }
+        return this.ckptVersion;
+    }
+
+    #getLbwWeightSetting(supportType, sdVersion) {
+        if (!supportType) {
+            supportType = this.#getLoraType();
+        }
+        if (!sdVersion) {
+            sdVersion = this.#getSdVersion();
+        }
+
+        if (supportType && sdVersion) {
+            return this.LBW_WEIGHT_SETTINGS[supportType][sdVersion];
+        } else {
+            return this.LBW_WEIGHT_SETTINGS["unknown"];
+        }
     }
 
     #updateBookmarkedIcon(isBookmarked) {
@@ -1208,7 +1205,7 @@ class WeightHelper {
         if (!this.weightData.special) {
             if (!lbwWeights.every(val => val === this.WEIGHT_SETTINGS.lbw.default)) {
                 let rateValues = lbwWeights.map(v => v / 100).join(",");
-                const lbwValues = this.#lbwWeightData().join(",");
+                const lbwValues = this.#getLbwWeightData().join(",");
 
                 let loraType = this.#getLoraType();
                 let sdVersion = this.#getSdVersion();
@@ -1303,7 +1300,7 @@ class WeightHelper {
                 const metadataButton = document.createElement("div");
                 metadataButton.className = "metadata-btn card-btn";
                 metadataButton.setAttribute("title", "Show internal metadata");
-                metadataButton.addEventListener("click", (e) => extraNetworksRequestMetadata(e, 'lora', modelName));
+                this.#bind(metadataButton, "click", (e) => extraNetworksRequestMetadata(e, 'lora', modelName));
                 buttonTop.appendChild(metadataButton);
             }
 
@@ -1311,7 +1308,7 @@ class WeightHelper {
                 const editButton = document.createElement("div");
                 editButton.className = "edit-btn card-btn";
                 editButton.setAttribute("title", "Edit metadata");
-                editButton.addEventListener("click", (e) => extraNetworksEditUserMetadata(e, this.tabId, 'lora', modelName));
+                this.#bind(editButton, "click", (e) => extraNetworksEditUserMetadata(e, this.tabId, 'lora', modelName));
                 buttonTop.appendChild(editButton);
             }
 
@@ -1319,7 +1316,7 @@ class WeightHelper {
                 const civitaiButton = document.createElement("div");
                 civitaiButton.className = "civitai-btn card-btn";
                 civitaiButton.setAttribute("title", "Open civitai");
-                civitaiButton.addEventListener("click", (e) => window.open(`https://civitai.com/models/${modelId}`, '_blank'));
+                this.#bind(civitaiButton, "click", () => window.open(`https://civitai.com/models/${modelId}`, '_blank'));
                 buttonTop.appendChild(civitaiButton);
             }
 
@@ -1327,7 +1324,7 @@ class WeightHelper {
                 const addTriggerButton = document.createElement("div");
                 addTriggerButton.className = "add-trigger-btn card-btn";
                 addTriggerButton.setAttribute("title", "Add trigger words");
-                addTriggerButton.addEventListener("click", (e) => {
+                this.#bind(addTriggerButton, "click", () => {
                     const addWords = ", " + triggerWords.join(", ");
                     if (!this.usingExecCommand) {
                         const head = this.textarea.value.substring(0, this.lastSelectionEnd);
@@ -1361,7 +1358,7 @@ class WeightHelper {
 
                 const actNote = document.createElement("div");
                 actNote.className = "card-btn note-btn";
-                actNote.addEventListener("click", () => {
+                this.#bind(actNote, "click", () => {
                     buttonTop.style.visibility = "hidden";
                     buttonBottom.style.visibility = "hidden";
                     actDesc.style.visibility = "visible";
@@ -1376,7 +1373,7 @@ class WeightHelper {
 
                 const actDescClose = document.createElement("div");
                 actDescClose.className = "card-btn description-close-btn";
-                actDescClose.addEventListener("click", () => {
+                this.#bind(actDescClose, "click", () => {
                     buttonTop.style.visibility = "";
                     buttonBottom.style.visibility = "";
                     actDesc.style.visibility = "";
@@ -1408,6 +1405,11 @@ class WeightHelper {
         }
     }
 
+    #bind(dom, eventName, func) {
+        dom.addEventListener(eventName, func);
+        this.releaseFunctions.push(() => dom.removeEventListener(eventName, func));
+    }
+
     show(top, left) {
         this.domCustomContextMenu.style.top = top + 'px';
         this.domCustomContextMenu.style.left = left + 'px';
@@ -1420,8 +1422,8 @@ class WeightHelper {
                 this.domCustomContextMenu.style.top = window.scrollY + 'px';
             }
         }
-        document.body.addEventListener('click', this.close);
-        document.body.addEventListener('keyup', this.escape);
+        this.#bind(document.body, "click", this.close);
+        this.#bind(document.body, "keyup", this.cancel);
         WeightHelper.last_instance = this;
 
         if (opts.weight_helper_show_preview) {
@@ -1458,7 +1460,7 @@ class WeightHelper {
         this.finally();
     };
 
-    escape = (e) => {
+    cancel = (e) => {
         if (e.key === 'Escape') {
             if (!this.usingExecCommand) {
                 this.#update(this.lastText);
@@ -1469,9 +1471,8 @@ class WeightHelper {
 
     finally() {
         WeightHelper.last_instance = undefined;
+        this.releaseFunctions.forEach((f) => f());
         this.domCustomContextMenu.remove();
-        document.body.removeEventListener("click", this.close);
-        document.body.removeEventListener('keyup', this.escape);
     }
 }
 
