@@ -25,46 +25,51 @@
     align-items: center;
 }
 #weight-helper > header .name {
-    max-width: 190px;
+    max-width: 146px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     pointer-events: none;
 }
-#weight-helper > header .bookmark::before {
-    content: "★";
+#weight-helper > header .bookmark {
+    width: 16px;
+    height: 20px;
     cursor: pointer;
-    font-size: calc(130%);
 }
-#weight-helper > header .bookmark.unlike::before {
-    color: var(--checkbox-background-color);
+#weight-helper > header .bookmark.unlike > svg {
+    fill: var(--checkbox-background-color);
 }
-#weight-helper > header .bookmark.like::before {
-    text-shadow: 0px 0px 2px var(--checkbox-border-color-selected);
-    color: var(--checkbox-border-color-selected);
+#weight-helper > header .bookmark.like > svg {
+    fill: var(--checkbox-border-color-selected);
 }
 #weight-helper > header .page {
     display: flex;
     align-items: center;
-    column-gap: 6px;
     padding-right: 4px;
 }
 #weight-helper > header .page > label {
     pointer-events: none;
 }
-#weight-helper > header .page .icon {
+#weight-helper .icon {
     background-color: var(--block-info-text-color);
     color: var(--border-color-primary);
     border-radius: 10px;
-    width: 20px;
+    padding: 0 7px;
     text-align: center;
     font-size: var(--text-xs);
+    display: flex;
+    justify-content: center;
 }
-#weight-helper .clear {
-    border: 1px solid var(--block-info-text-color);
-    border-radius: 10px;
-    font-size: var(--text-xs);
-    padding: 0px 9px;
+#weight-helper .icon.svg {
+    background-color: initial;
+    width: 13px;
+}
+#weight-helper .icon.svg > svg {
+    stroke: var(--block-label-text-color);
+    fill: var(--block-label-text-color);
+}
+#weight-helper .icon.mini {
+    padding: 0 4px;
 }
 #weight-helper > header .history {
     display: flex;
@@ -73,6 +78,35 @@
 }
 #weight-helper > header .history label {
     width: 40px;
+}
+#weight-helper .metadata {
+    color: var(--block-label-text-color);
+    font-size: 10px;
+    margin: 0 4px 4px;
+    display: flex;
+    column-gap: 4px;
+    justify-content: space-between;
+    user-select: none;
+    align-items: stretch;
+}
+#weight-helper .metadata > span {
+    font-weight: bold;
+    border-radius: 4px;
+    border: 1px solid var(--block-info-text-color);
+    text-align: left;
+    flex: 1 1 50%;
+}
+#weight-helper .metadata > span > span:nth-child(1) {
+    color: var(--block-label-text-color);
+    background-color: var(--border-color-primary);
+    border-radius: 3px 0 0 3px;
+    padding: 0px 6px;
+}
+#weight-helper .metadata > span > span:nth-child(2) {
+    margin-left: 6px;
+}
+#weight-helper .metadata.error > span > span:nth-child(2) {
+    color: var(--error-text-color);
 }
 #weight-helper section {
     display: flex;
@@ -125,7 +159,7 @@
     padding: 0 5px 0 5px;
 }
 #weight-helper input.slider {
-    width: 160px;
+    width: var(--weight-helper-slider_size);
     min-width: initial;
     margin: 0;
     accent-color: var(--slider-color);

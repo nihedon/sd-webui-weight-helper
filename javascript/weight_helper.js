@@ -4,9 +4,9 @@ const VERSION = "1.2.0"
 localStorage.removeItem("weight_helper");
 localStorage.removeItem("weight_helper_type");
 
-var weight_helper_history;
-var weight_helper_bookmark;
-var weight_helper_type;
+var weight_helper_data = {};
+
+var weight_helper_preview_info = {};
 
 var sampling_steps;
 
@@ -34,6 +34,8 @@ class WeightSet {
 
 class WeightData {
     VERSION;
+    lbw_lora_type;
+    lbw_sd_version;
     te;
     use_unet;
     unet;
@@ -62,6 +64,15 @@ class WeightData {
 
     equals(other) {
         if (other == null) {
+            return false;
+        }
+        if (this.lbw_lora_type !== other.lbw_lora_type) {
+            return false;
+        }
+        if (this.lbw_sd_version !== other.lbw_sd_version) {
+            return false;
+        }
+        if (this.te[0] !== other.te[0]) {
             return false;
         }
         if (this.te[0] !== other.te[0]) {
@@ -104,9 +115,11 @@ class WeightData {
         return true;
     }
 
-    hashCode(masks = this.masks) {
+    hashCode() {
         let hash = 0;
         const calcHash = (v) => ((hash ^ v) << 5) - hash ^ v;
+        hash = calcHash(strHashCode(this.lbw_lora_type));
+        hash = calcHash(strHashCode(this.lbw_sd_version));
         hash = calcHash(this.te[0]);
         hash = calcHash(this.use_unet ? 1 : 0);
         hash = calcHash(this.use_unet ? this.unet[0] : 0);
@@ -118,7 +131,7 @@ class WeightData {
             hash = calcHash(strHashCode(this.special));
         } else {
             for (let i = 0; i < this.lbw.length; i++) {
-                const val = !masks || masks[i] === 1 ? this.lbw[i] : 0;
+                const val = !this.masks || this.masks[i] === 1 ? this.lbw[i] : 0;
                 hash = calcHash(val);
             }
         }
@@ -128,47 +141,48 @@ class WeightData {
 
 class WeightHelper {
 
+    static PLUGIN_DIRNAME = "sd-webui-weight-helper";
     static REGEX = /<([^:]+):([^:]+):([^>]+)>/;
-
     static TAG_TYPES = ["lora", "lyco"];
 
-    static LORA_TYPES = ["lierla", "c3lier_lyco"];
-
-    static SPECIAL_PRESETS = ["XYZ"];
+    static SPECIAL_PRESETS = {
+        lora: {
+            SD: [{ "XYZ (17)": "XYZ" }],
+            SDXL: [{ "XYZ (12)": "XYZ" }]
+        },
+        lycoris: {
+            SD: [{ "XYZ (26)": "XYZ" }],
+            SDXL: [{ "XYZ (20)": "XYZ" }]
+        },
+        unknown: [{ "XYZ (26)": "XYZ" }]
+    };
 
     static last_instance = undefined;
 
-    static NETWORK_MODULE_TO_LORA_TYPE = {
-        "LoRA-LierLa": "lierla",
-        "LoRA-C3Lier": "c3lier_lyco",
-        "LyCORIS": "c3lier_lyco"
-    };
-
-    static NETWORK_MODULE_TO_TAG_NAME = {
-        "LoRA-LierLa": "lora",
-        "LoRA-C3Lier": "lora",
-        "LyCORIS": "lyco"
+    static LORA_TYPE_PULLDOWN = {
+        "LoRA(LierLa)": "lora",
+        "LyCORIS,etc": "lycoris"
     };
 
     static LBW_WEIGHT_SD_VERSIONS = ["SD", "SDXL"];
 
-    LBW_WEIGHT_SETTINGS = {
-        lierla: {
-            "SD": {
+    static LBW_WEIGHT_SETTINGS = {
+        lora: {
+            SD: {
                 masks: [1,0,1,1,0,1,1,0,1,1,0,0,0,1,0,0,0,1,1,1,1,1,1,1,1,1],
                 block_points: ["BASE", "IN01-IN04", "IN05-IN08", "M00", "OUT03-OUT06", "OUT07-OUT11"]
             },
-            "SDXL": {
+            SDXL: {
                 masks: [1,0,0,0,0,1,1,0,1,1,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0],
                 block_points: ["BASE", "IN04-IN08", "M00", "OUT00-OUT05"]
             }
         },
-        c3lier_lyco: {
-            "SD": {
+        lycoris: {
+            SD: {
                 masks: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
                 block_points: ["BASE", "IN00-IN05", "IN06-IN11", "M00", "OUT00-OUT05", "OUT06-OUT11"]
             },
-            "SDXL": {
+            SDXL: {
                 masks: [1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0],
                 block_points: ["BASE", "IN00-IN03", "IN04-IN08", "M00", "OUT00-OUT03", "OUT04-OUT08"]
             }
@@ -222,12 +236,8 @@ class WeightHelper {
     lbwPresetsValueKeyMap = {};
     weightUIs = {};
 
-    loraInfo = {};
-    sdVersion = "";
-    ckptVersion = null;
-    networkModule = null;
-    assumedSdVersion = null;
-    assumedLoraType = null;
+    metadata = {};
+    previewInfo = {};
 
     tagName = null;
     name = null;
@@ -246,10 +256,6 @@ class WeightHelper {
     openedExtraOption = false;
 
     domCustomContextMenu = null;
-    domBookmarkIcon = null;
-    domPageLabel = null;
-    domPresetSelect = null;
-    domLbwGroupWrapper = null;
 
     releaseFunctions = [];
 
@@ -300,6 +306,8 @@ class WeightHelper {
     }
 
     constructor(tabId, textarea, selectionStart, selectionEnd, tagName, name, multiplier) {
+        document.documentElement.style.setProperty('--weight-helper-slider_size', opts.weight_helper_slider_length);
+
         this.tabId = tabId;
         this.textarea = textarea;
         this.lastSelectionStart = selectionStart;
@@ -314,13 +322,8 @@ class WeightHelper {
         const samplingSteps = gradioApp().getElementById(`${this.tabId}_steps`).querySelector("input");
         sampling_steps = parseInt(samplingSteps.value) * 100;
 
-        if (!(this.nameHash in weight_helper_history)) {
-            weight_helper_history[this.nameHash] = [];
-            weight_helper_bookmark[this.nameHash] = [];
-        }
-
         const optBlockPattern = /((BASE|MID|M00|(IN|OUT)[0-9]{1,2}(-(IN|OUT)[0-9]{1,2})?) *(, *|$))+/;
-        for (let loraType of WeightHelper.LORA_TYPES) {
+        for (let loraType of Object.values(WeightHelper.LORA_TYPE_PULLDOWN)) {
             for (let sdVersion of WeightHelper.LBW_WEIGHT_SD_VERSIONS) {
                 try {
                     let optBlockPoints = opts[`weight_helper_lbw_${loraType}_${sdVersion.toLowerCase()}_block_points`]
@@ -347,28 +350,36 @@ class WeightHelper {
     }
 
     async setup() {
-        this.loraInfo = await postAPI("/whapi/v1/get_lora_info?key=" + encodeURIComponent(this.name), null) ?? {};
-
-        if (this.nameHash in weight_helper_type) {
-            this.networkModule = weight_helper_type[this.nameHash].networkModule;
-            this.sdVersion = weight_helper_type[this.nameHash].sdVersion;
-        } else if (this.loraInfo) {
-            this.networkModule = this.loraInfo.network_module;
-            this.sdVersion = this.loraInfo.sd_version;
+        if (!(this.nameHash in weight_helper_data)) {
+            weight_helper_data[this.nameHash] = { "bookmark": [], "history": [], "lora_info": {} }
         }
-        this.ckptVersion = this.loraInfo.ckpt_version;
+
+        if (!("lora_info" in weight_helper_data[this.nameHash])) {
+            weight_helper_data[this.nameHash].lora_info = {};
+        }
+        const loraInfo = weight_helper_data[this.nameHash].lora_info;
+        if ("metadata" in loraInfo) {
+            this.metadata = loraInfo.metadata;
+            this.weightData.lbw_sd_version = this.metadata.sd_version;
+        }
+        if ("selected_lora_type" in loraInfo) {
+            this.weightData.lbw_lora_type = loraInfo.selected_lora_type.lbw_lora_type;
+            this.weightData.lbw_sd_version = loraInfo.selected_lora_type.lbw_sd_version;
+        } else {
+            loraInfo.selected_lora_type = {};
+        }
+        if (this.nameHash in weight_helper_preview_info) {
+            this.previewInfo = weight_helper_preview_info[this.nameHash];
+        }
 
         this.WEIGHT_SETTINGS.start.max = sampling_steps;
         this.WEIGHT_SETTINGS.stop.max = sampling_steps;
         this.WEIGHT_SETTINGS.stop.default = sampling_steps;
 
         const lbwPreset = gradioApp().getElementById("lbw_ratiospreset").querySelector("textarea");
-        let lbwPresetValue = lbwPreset.value;
-        if (!lbwPresetValue) {
-            lbwPresetValue = "";
-        }
+        let lbwPresetValue = lbwPreset.value ?? "";
         const lbwPresets = lbwPresetValue.split("\n").filter(e => e.trim() !== '');
-        for (const loraType of WeightHelper.LORA_TYPES) {
+        for (const loraType of Object.values(WeightHelper.LORA_TYPE_PULLDOWN)) {
             this.lbwPresetsMap[loraType] = {};
             this.lbwPresetsValueKeyMap[loraType] = {};
             for (const sdVersion of WeightHelper.LBW_WEIGHT_SD_VERSIONS) {
@@ -401,6 +412,9 @@ class WeightHelper {
 
         const keyTypes = ["te", "unet", "dyn"];
         const lbwBlocks = this.multiplier.split(":");
+
+        let assumedSdVersion = null;
+        let assumedLoraType = null;
         for (let i = 0; i < lbwBlocks.length; i++) {
             let lbwBlock = lbwBlocks[i].split("=");
             let keyType;
@@ -415,49 +429,47 @@ class WeightHelper {
             if (keyType === "lbw") {
                 blocks = lbwBlock[1].split(',');
 
-                if (blocks.length === 1 && WeightHelper.SPECIAL_PRESETS.includes(blocks[0])) {
-                    this.weightData.special = blocks[0];
-                }
-
-                for (const loraType of WeightHelper.LORA_TYPES) {
-                    let determined = false;
-                    for (const sdVersion of WeightHelper.LBW_WEIGHT_SD_VERSIONS) {
-                        const lbwPresets = this.lbwPresetsMap[loraType][sdVersion];
+                const setLbwBlocks = (loraType, sdVersion) => {
+                    const specialPresets = this.#getLbwSpecialPreset(loraType, sdVersion);
+                    if (blocks.length === 1) {
+                        if (specialPresets.some(s => Object.values(s)[0] === blocks[0])) {
+                            this.weightData.special = blocks[0];
+                        }
+                    }
+                    if (blocks.length === 1) {
+                        const lbwPresets = this.#getLbwPresets(loraType, sdVersion);
                         if (blocks in lbwPresets) {
-                            determined = true;
                             blocks = lbwPresets[blocks].split(',');
-                            break;
                         }
                     }
-                    if (determined) {
-                        break;
+                    if (blocks.length === 1) {
+                        return false;
                     }
-                }
-
-                for (const loraType of WeightHelper.LORA_TYPES) {
-                    let determined = false;
-                    for (const sdVersion of WeightHelper.LBW_WEIGHT_SD_VERSIONS) {
-                        const masks = this.#getLbwWeightSetting(loraType, sdVersion).masks;
-                        if (blocks.length === masks.filter((b) => b == 1).length) {
-                            determined = true;
-                            this.assumedSdVersion = sdVersion;
-                            this.assumedLoraType = loraType;
-                            let refIdx = 0;
-                            for (let enable of masks) {
-                                if (enable) {
-                                    this.weightData.lbw.push(parseInt(blocks[refIdx] * 100));
-                                    refIdx++;
-                                } else {
-                                    this.weightData.lbw.push(0);
-                                }
+                    const masks = this.#getLbwWeightSetting(loraType, sdVersion).masks;
+                    if (blocks.length === masks.filter((b) => b == 1).length) {
+                        assumedSdVersion = sdVersion;
+                        assumedLoraType = loraType;
+                        let refIdx = 0;
+                        for (let enable of masks) {
+                            if (enable) {
+                                this.weightData.lbw.push(parseInt(blocks[refIdx] * 100));
+                                refIdx++;
+                            } else {
+                                this.weightData.lbw.push(0);
                             }
-                            break;
                         }
-                    }
-                    if (determined) {
-                        break;
+                        return true;
                     }
                 }
+                (() => {
+                    for (const loraType of Object.values(WeightHelper.LORA_TYPE_PULLDOWN)) {
+                        for (const sdVersion of WeightHelper.LBW_WEIGHT_SD_VERSIONS) {
+                            if (setLbwBlocks(loraType, sdVersion)) {
+                                return;
+                            }
+                        }
+                    }
+                })();
 
             } else if (keyType === "step") {
                 const startStop = blocks.split('-');
@@ -472,44 +484,51 @@ class WeightHelper {
         this.weightData.use_unet = this.weightData.unet[0] != null;
         this.weightData.use_dyn = this.weightData.dyn[0] != null;
 
-        if (opts.weight_helper_use_default_setting) {
-            if (!this.assumedLoraType && !this.networkModule) {
-                if (this.tagName === "lora") {
-                    this.networkModule = "LoRA-LierLa";
-                } else {
-                    this.networkModule = "LyCORIS";
-                }
-            }
-            if (!this.assumedSdVersion && !this.sdVersion) {
-                this.sdVersion = this.ckptVersion;
+        if (assumedLoraType) {
+            this.weightData.lbw_lora_type = assumedLoraType;
+        }
+        if (!this.weightData.lbw_lora_type) {
+            if (this.tagName === "lora") {
+                this.weightData.lbw_lora_type = "lora";
+            } else {
+                this.weightData.lbw_lora_type = "lycoris";
             }
         }
+        if (assumedSdVersion) {
+            this.weightData.lbw_sd_version = assumedSdVersion;
+        }
+        if (!this.weightData.lbw_sd_version) {
+            this.weightData.lbw_sd_version = this.metadata.sd_version;
+        }
 
+        const masks = this.#getLbwWeightSetting(this.weightData.lbw_lora_type, this.weightData.lbw_sd_version).masks;
+        this.weightData.masks = masks;
         if (!this.weightData.lbw.length) {
-            const masks = this.#getLbwWeightSetting().masks;
             for (let _ of masks) {
                 this.weightData.lbw.push(100);
             }
         }
 
-        if (!weight_helper_history[this.nameHash]) {
-            weight_helper_history[this.nameHash] = [];
+        if (!("bookmark" in weight_helper_data[this.nameHash])) {
+            weight_helper_data[this.nameHash].bookmark = [];
         }
-        this.currentHistory = weight_helper_history[this.nameHash];
+        weight_helper_data[this.nameHash].bookmark.forEach(bookmark => {
+            this.currentBookmarkSet.add(bookmark.hashCode(), bookmark);
+        });
+
+        if (!("history" in weight_helper_data[this.nameHash])) {
+            weight_helper_data[this.nameHash].history = [];
+        }
+        this.currentHistory = weight_helper_data[this.nameHash].history;
         if (this.currentHistory.length == 0) {
             this.currentHistory.push(this.weightData.clone());
         } else {
             const historyLen = this.currentHistory.length;
-            if (!this.weightData.equals(this.currentHistory[historyLen - 1])) {
+            const latestHistory = this.currentHistory[historyLen - 1];
+            if (!this.weightData.equals(latestHistory)) {
                 this.currentHistory.push(this.weightData.clone());
             }
         }
-        if (!weight_helper_bookmark[this.nameHash]) {
-            weight_helper_bookmark[this.nameHash] = [];
-        }
-        weight_helper_bookmark[this.nameHash].forEach(bookmark => {
-            this.currentBookmarkSet.add(bookmark.hashCode(), bookmark);
-        });
         this.historyIndex = this.currentHistory.length - 1;
 
         this.#makeContextMenuHeader();
@@ -538,19 +557,19 @@ class WeightHelper {
         const headerTitle = document.createElement('span');
         header.appendChild(headerTitle);
 
-        this.domBookmarkIcon = document.createElement('span');
-
-        const masks = this.#getLbwWeightSetting().masks;
-        const weightDataHash = this.weightData.hashCode(masks);
+        const weightDataHash = this.weightData.hashCode();
         const isBookmarked = this.currentBookmarkSet.has(weightDataHash);
-        this.domBookmarkIcon.className = `bookmark ${isBookmarked ? "like" : "unlike"}`;
-        if (this.weightData.isSpecial()) {
-            this.domBookmarkIcon.style.visibility = "hidden";
+
+        const bookmarkIcon = document.createElement('span');
+        bookmarkIcon.className = "svg";
+        bookmarkIcon.innerHTML = WeightHelper.SVG_LOCK;
+        bookmarkIcon.className = `bookmark ${isBookmarked ? "like" : "unlike"}`;
+        if (this.weightData.isSpecial() || !this.weightData.lbw_lora_type || !this.weightData.lbw_sd_version) {
+            bookmarkIcon.style.visibility = "hidden";
         }
-        headerTitle.prepend(this.domBookmarkIcon);
-        this.#bind(this.domBookmarkIcon, "click", () => {
-            const masks = this.#getLbwWeightSetting().masks;
-            const weightDataHash = this.weightData.hashCode(masks);
+        headerTitle.prepend(bookmarkIcon);
+        this.#bind(bookmarkIcon, "click", () => {
+            const weightDataHash = this.weightData.hashCode();
             const isBookmarked = this.currentBookmarkSet.has(weightDataHash);
 
             this.#updateBookmarkedIcon(!isBookmarked);
@@ -558,7 +577,6 @@ class WeightHelper {
                 this.currentBookmarkSet.delete(weightDataHash);
             } else {
                 const weightDataClone = this.weightData.clone();
-                weightDataClone.masks = masks;
                 if (weightDataClone.stop[0] == this.WEIGHT_SETTINGS.stop.default) {
                     weightDataClone.stop[0] = null;
                 }
@@ -575,12 +593,30 @@ class WeightHelper {
         history.className = "history";
         header.appendChild(history);
 
+        const clear = document.createElement('a');
+        clear.className = "icon";
+        clear.textContent = "clear";
+        clear.addEventListener("click", () => {
+            const newHistory = this.currentBookmarkSet.getAll();
+            if (newHistory.length == 0 || !newHistory[newHistory.length - 1].equals(this.weightData)) {
+                newHistory.push(this.weightData);
+            }
+
+            weight_helper_data[this.nameHash].history = newHistory;
+            this.currentHistory = newHistory;
+
+            pageLabel.textContent = `${newHistory.length}/${newHistory.length}`;
+            this.historyIndex = newHistory.length - 1;
+        });
+        history.appendChild(clear);
+
         const pageWrapper = document.createElement('div');
         pageWrapper.className = "page";
         history.appendChild(pageWrapper);
 
-        this.domPageLabel = document.createElement('label');
-        this.domPageLabel.textContent = (this.historyIndex + 1) + "/" + this.currentHistory.length;
+        const pageLabel = document.createElement('label');
+        pageLabel.className = "page-label";
+        pageLabel.textContent = (this.historyIndex + 1) + "/" + this.currentHistory.length;
 
         const pageLeft = document.createElement('a');
         pageLeft.textContent = "<";
@@ -594,7 +630,7 @@ class WeightHelper {
             this.#restoreFromHistory();
         });
 
-        pageWrapper.appendChild(this.domPageLabel);
+        pageWrapper.appendChild(pageLabel);
 
         const pageRight = document.createElement('a');
         pageRight.textContent = ">";
@@ -626,10 +662,39 @@ class WeightHelper {
     }
 
     #makeContextMenuBody() {
-        const children = this.domCustomContextMenu.getElementsByTagName("section");
-        while (children.length > 0) {
-            children[0].remove();
-        }
+        const metadata = document.createElement("span");
+        metadata.className = "metadata";
+
+        const loraInfoType = document.createElement("span");
+        metadata.appendChild(loraInfoType);
+        const typeLabel = document.createElement("span");
+        typeLabel.innerText = "Alg:"
+        loraInfoType.appendChild(typeLabel);
+        const typeVal = document.createElement("span");
+        typeVal.className = "metadata__alg";
+        typeVal.innerText = "-----";
+        loraInfoType.appendChild(typeVal);
+
+        const loraInfoSdVer = document.createElement("span");
+        metadata.appendChild(loraInfoSdVer);
+        const sdVerLabel = document.createElement("span");
+        sdVerLabel.innerText = "SD Ver:";
+        loraInfoSdVer.appendChild(sdVerLabel);
+        const sdVerVal = document.createElement("span");
+        sdVerVal.className = "metadata__sdver"
+        sdVerVal.innerText = "-----";
+        loraInfoSdVer.appendChild(sdVerVal);
+
+        const reload = document.createElement("a");
+        reload.className = "icon mini svg";
+        reload.innerHTML = WeightHelper.SVG_RELOAD;
+        metadata.appendChild(reload);
+        reload.addEventListener("click", () => {
+            this.#loadMetadata(true);
+        });
+
+        this.domCustomContextMenu.appendChild(metadata);
+
         const extraOpts = [];
         let hiddenExtraOpts = 0;
         for (const group of Object.keys(this.WEIGHT_SETTINGS)) {
@@ -700,33 +765,31 @@ class WeightHelper {
         typeRow.className = "f g-2 f-end";
 
         const loraTypeSelect = document.createElement("select");
+        loraTypeSelect.className = "select-lora";
         loraTypeSelect.style.flexGrow = 1;
-        for (const networkModule of Object.keys(WeightHelper.NETWORK_MODULE_TO_LORA_TYPE)) {
+        for (const entry of Object.entries(WeightHelper.LORA_TYPE_PULLDOWN)) {
             const lbwTagOpt = document.createElement('option');
-            lbwTagOpt.value = networkModule;
-            lbwTagOpt.text = networkModule;
+            lbwTagOpt.text = entry[0];
+            lbwTagOpt.value = entry[1];
             loraTypeSelect.appendChild(lbwTagOpt);
         }
-        let selectNetworkModule = undefined;
-        if (this.networkModule) {
-            let networkModuleLoraType = WeightHelper.NETWORK_MODULE_TO_LORA_TYPE[this.networkModule];
-            if (this.assumedLoraType) {
-                if (networkModuleLoraType == this.assumedLoraType) {
-                    selectNetworkModule = this.networkModule;
-                }
-            } else {
-                selectNetworkModule = this.networkModule;
-            }
-        }
-        loraTypeSelect.value = selectNetworkModule;
+        loraTypeSelect.value = this.weightData.lbw_lora_type;
 
+        const bookmarkIcon = this.domCustomContextMenu.querySelector(".bookmark");
         this.#bind(loraTypeSelect, "change", (e) => {
-            this.networkModule = e.target.value;
-            this.assumedLoraType = null;
+            this.weightData.lbw_lora_type = e.target.value;
             this.#makeLbwGroupWrapper();
             if (!this.usingExecCommand) {
                 const updatedText = this.#getUpdatedText();
                 this.#update(updatedText);
+            }
+            const sdVersion = this.weightData.lbw_sd_version;
+            const masks = this.#getLbwWeightSetting(e.target.value, sdVersion).masks;
+            this.weightData.masks = masks;
+            if (sdVersion && !this.weightData.special) {
+                bookmarkIcon.style.visibility = "";
+                const isBookmarked = this.currentBookmarkSet.has(this.weightData.hashCode());
+                this.#updateBookmarkedIcon(isBookmarked);
             }
         });
         typeRow.appendChild(loraTypeSelect);
@@ -737,25 +800,29 @@ class WeightHelper {
         const typeType = document.createElement("div");
         typeType.className = "f g-2 f-end";
         for (const sdVersion of WeightHelper.LBW_WEIGHT_SD_VERSIONS) {
-            const radioId = "weight-helper-sd_version_" + sdVersion;
             const sdVersionRadio = document.createElement("input");
+            const radioId = "weight-helper__sd-version_" + sdVersion;
             sdVersionRadio.id = radioId;
+            sdVersionRadio.className = "sd-version";
             sdVersionRadio.type = "radio";
-            sdVersionRadio.name = "weight-helper-sd_version";
+            sdVersionRadio.name = "sd-version";
             sdVersionRadio.value = sdVersion;
-            sdVersionRadio.checked = sdVersion == this.#getSdVersion();
+            sdVersionRadio.checked = sdVersion == this.weightData.lbw_sd_version;
             this.#bind(sdVersionRadio, "change", (e) => {
-                this.sdVersion = e.target.value;
-                this.assumedSdVersion = null;
+                this.weightData.lbw_sd_version = e.target.value;
                 this.#makeLbwGroupWrapper();
                 if (!this.usingExecCommand) {
                     const updatedText = this.#getUpdatedText();
                     this.#update(updatedText);
                 }
-                const masks = this.#getLbwWeightSetting().masks;
-                const weightDataHash = this.weightData.hashCode(masks);
-                const isBookmarked = this.currentBookmarkSet.has(weightDataHash);
-                this.#updateBookmarkedIcon(isBookmarked);
+                const loraType = this.weightData.lbw_lora_type;
+                const masks = this.#getLbwWeightSetting(loraType, e.target.value).masks;
+                this.weightData.masks = masks;
+                if (loraType && !this.weightData.special) {
+                    bookmarkIcon.style.visibility = "";
+                    const isBookmarked = this.currentBookmarkSet.has(this.weightData.hashCode());
+                    this.#updateBookmarkedIcon(isBookmarked);
+                }
             });
             typeType.appendChild(sdVersionRadio);
 
@@ -770,22 +837,30 @@ class WeightHelper {
         typeRow.appendChild(typeTypeRow);
         lbwSet.appendChild(typeRow);
 
-        this.domPresetSelect = document.createElement('select');
-        lbwSet.appendChild(this.domPresetSelect);
+        const domPresetSelect = document.createElement('select');
+        domPresetSelect.className = "preset-select";
+        lbwSet.appendChild(domPresetSelect);
 
-        this.#bind(this.domPresetSelect, "change", (e) => {
+        const domLbwGroupWrapper = document.createElement("div");
+        domLbwGroupWrapper.className = 'lbw-group-wrapper f col g-2';
+        domLbwGroupWrapper.style.display = this.weightData.special ? "none" : "flex";
+        this.#bind(domPresetSelect, "change", (e) => {
             const selectVal = e.target.value;
-            const isSpecial = WeightHelper.SPECIAL_PRESETS.includes(selectVal);
+            const specialPresets = this.#getLbwSpecialPreset(this.weightData.lbw_lora_type, this.weightData.lbw_sd_version);
+            const isSpecial = specialPresets.some(s => Object.values(s)[0] === selectVal);
+            const bookmarkIcon = this.domCustomContextMenu.querySelector(".bookmark");
             if (isSpecial) {
                 this.weightData.special = selectVal;
-                this.domLbwGroupWrapper.style.display = "none";
-                this.domBookmarkIcon.style.visibility = "hidden";
+                domLbwGroupWrapper.style.display = "none";
+                bookmarkIcon.style.visibility = "hidden";
             } else {
                 this.weightData.special = "";
-                this.domLbwGroupWrapper.style.display = "flex";
-                this.domBookmarkIcon.style.visibility = "";
+                domLbwGroupWrapper.style.display = "flex";
+                if (this.weightData.lbw_lora_type && this.weightData.lbw_sd_version) {
+                    bookmarkIcon.style.visibility = "";
+                }
 
-                const masks = this.#getLbwWeightSetting().masks;
+                const masks = this.#getLbwWeightSetting(this.weightData.lbw_lora_type, this.weightData.lbw_sd_version).masks;
                 let values;
                 if (selectVal === "") {
                     values = [];
@@ -810,7 +885,7 @@ class WeightHelper {
                     this.weightUIs[group].updown[idx].value = val / 100;
                 }
 
-                const weightDataHash = this.weightData.hashCode(masks);
+                const weightDataHash = this.weightData.hashCode();
                 const isBookmarked = this.currentBookmarkSet.has(weightDataHash);
                 this.#updateBookmarkedIcon(isBookmarked);
             }
@@ -829,59 +904,57 @@ class WeightHelper {
             const label = document.createElement('label');
             label.textContent = this.WEIGHT_SETTINGS[group].labels[idx];
             lbwUnit.appendChild(label);
-            lbwUnit.appendChild(this.#makeSliderComponent(null, this.domPresetSelect, group, idx));
+            lbwUnit.appendChild(this.#makeSliderComponent(null, domPresetSelect, group, idx));
 
             this.weightUIs.lbw.dom.push(lbwUnit);
         }
 
-        this.domLbwGroupWrapper = document.createElement('div');
-        this.domLbwGroupWrapper.className = 'lbw-group-wrapper f col g-2';
-        if (!this.weightData.special) {
-            this.domLbwGroupWrapper.style.display = "flex";
-        } else {
-            this.domLbwGroupWrapper.style.display = "none";
-        }
-
-        lbwSet.appendChild(this.domLbwGroupWrapper);
+        lbwSet.appendChild(domLbwGroupWrapper);
         this.domCustomContextMenu.appendChild(lbwSection);
     }
 
     #makeLbwGroupWrapper() {
-        while (this.domPresetSelect.firstChild) {
-            this.domPresetSelect.removeChild(this.domPresetSelect.firstChild);
+        const domPresetSelect = this.domCustomContextMenu.querySelector(".preset-select");
+        while (domPresetSelect.firstChild) {
+            domPresetSelect.removeChild(domPresetSelect.firstChild);
         }
         const opt = document.createElement('option');
         opt.value = "";
         opt.text = "";
-        this.domPresetSelect.appendChild(opt);
+        domPresetSelect.appendChild(opt);
 
-        for (const sp of WeightHelper.SPECIAL_PRESETS) {
-            const spOpt = document.createElement('option');
-            spOpt.value = sp;
-            spOpt.text = sp;
-            this.domPresetSelect.appendChild(spOpt);
+        const specialPresets = this.#getLbwSpecialPreset(this.weightData.lbw_lora_type, this.weightData.lbw_sd_version);
+        for (const sp of specialPresets) {
+            for (const spEntry of Object.entries(sp)) {
+                const spOpt = document.createElement('option');
+                spOpt.text = spEntry[0];
+                spOpt.value = spEntry[1];
+                domPresetSelect.appendChild(spOpt);
+            }
         }
 
-        let loraType = this.#getLoraType();
-        let sdVersion = this.#getSdVersion();
+        let loraType = this.weightData.lbw_lora_type;
+        let sdVersion = this.weightData.lbw_sd_version;
 
         if (sdVersion && loraType) {
-            if (Object.keys(this.lbwPresetsMap[loraType][sdVersion]).length) {
-                for (const key of Object.keys(this.lbwPresetsMap[loraType][sdVersion])) {
+            if (Object.keys(this.#getLbwPresets(loraType, sdVersion)).length) {
+                const lbwPresets = this.#getLbwPresets(loraType, sdVersion);
+                for (const key of Object.keys(lbwPresets)) {
                     const opt = document.createElement('option');
                     opt.text = key;
-                    opt.value = this.lbwPresetsMap[loraType][sdVersion][key];
-                    this.domPresetSelect.appendChild(opt);
+                    opt.value = lbwPresets[key];
+                    domPresetSelect.appendChild(opt);
                 }
             }
         }
-        this.domPresetSelect.value = this.#getLbwWeightData();
+        domPresetSelect.value = this.#getLbwWeightData();
 
-        while (this.domLbwGroupWrapper.firstChild) {
-            this.domLbwGroupWrapper.removeChild(this.domLbwGroupWrapper.firstChild);
+        const domLbwGroupWrapper = this.domCustomContextMenu.querySelector(".lbw-group-wrapper");
+        while (domLbwGroupWrapper.firstChild) {
+            domLbwGroupWrapper.removeChild(domLbwGroupWrapper.firstChild);
         }
 
-        const lbwWeightSetting = this.#getLbwWeightSetting();
+        const lbwWeightSetting = this.#getLbwWeightSetting(this.weightData.lbw_lora_type, this.weightData.lbw_sd_version);
 
         const labelMap = {};
         for (let idx = 0; idx < this.WEIGHT_SETTINGS.lbw.labels.length; idx++) {
@@ -901,7 +974,7 @@ class WeightHelper {
                     lbwGroup.appendChild(this.weightUIs.lbw.dom[idx]);
                 }
             }
-            this.domLbwGroupWrapper.appendChild(lbwGroup);
+            domLbwGroupWrapper.appendChild(lbwGroup);
         }
     }
 
@@ -946,8 +1019,7 @@ class WeightHelper {
             this.#bind(useCheck, "change", (e) => {
                 this.weightData[`use_${group}`] = e.target.checked;
 
-                const masks = this.#getLbwWeightSetting().masks;
-                const weightDataHash = this.weightData.hashCode(masks);
+                const weightDataHash = this.weightData.hashCode();
                 const isBookmarked = this.currentBookmarkSet.has(weightDataHash);
                 this.#updateBookmarkedIcon(isBookmarked);
 
@@ -976,11 +1048,12 @@ class WeightHelper {
 
         const changedLbwValues = () => {
             let lbwValues = null;
-            if (lbwPresetSelect && group === "lbw") {
+            const loraType = this.weightData.lbw_lora_type;
+            const sdVersion = this.weightData.lbw_sd_version;
+            if (lbwPresetSelect && group === "lbw" && loraType && sdVersion) {
                 this.weightData.special = "";
                 lbwValues = this.#getLbwWeightData().join(",");
-                const supportType = WeightHelper.NETWORK_MODULE_TO_LORA_TYPE[this.networkModule];
-                if (lbwValues in this.lbwPresetsValueKeyMap[supportType][this.sdVersion]) {
+                if (lbwValues in this.lbwPresetsValueKeyMap[loraType][sdVersion]) {
                     lbwPresetSelect.value = lbwValues;
                 } else {
                     lbwPresetSelect.selectedIndex = 0;
@@ -994,8 +1067,7 @@ class WeightHelper {
                 }
             }
 
-            const masks = this.#getLbwWeightSetting().masks;
-            const weightDataHash = this.weightData.hashCode(masks);
+            const weightDataHash = this.weightData.hashCode();
             const isBookmarked = this.currentBookmarkSet.has(weightDataHash);
             this.#updateBookmarkedIcon(isBookmarked);
 
@@ -1021,14 +1093,14 @@ class WeightHelper {
     }
 
     #restoreFromHistory() {
-        this.domPageLabel.textContent = (this.historyIndex + 1) + "/" + this.currentHistory.length;
+        const pageLabel = this.domCustomContextMenu.querySelector(".page-label");
+        pageLabel.textContent = (this.historyIndex + 1) + "/" + this.currentHistory.length;
+        const oldLbwLoraType = this.weightData.lbw_lora_type;
+        const oldSdVersion = this.weightData.lbw_sd_version;
         this.weightData = this.currentHistory[this.historyIndex].clone();
 
-        if (this.weightData.isSpecial()) {
-            this.domBookmarkIcon.style.visibility = "hidden";
-        } else {
-            this.domBookmarkIcon.style.visibility = "";
-        }
+        const bookmarkIcon = this.domCustomContextMenu.querySelector(".bookmark");
+        bookmarkIcon.style.visibility = this.weightData.isSpecial() ? "hidden" : "";
 
         Object.keys(this.weightData).map(key => {
             if (["VERSION"].includes(key)) {
@@ -1070,27 +1142,36 @@ class WeightHelper {
             }
         });
 
-        if (this.weightData.special) {
-            this.domPresetSelect.value = this.weightData.special;
-            this.domLbwGroupWrapper.style.display = "none";
+        if (oldLbwLoraType !== this.weightData.lbw_lora_type || oldSdVersion !== this.weightData.lbw_sd_version) {
+            const loraTypeSelect = this.domCustomContextMenu.querySelector(".select-lora");
+            loraTypeSelect.value = this.weightData.lbw_lora_type;
+            const sdVersionRadios = this.domCustomContextMenu.querySelectorAll(".sd-version");
+            sdVersionRadios.forEach((radio) => {
+                radio.checked = radio.value === this.weightData.lbw_sd_version;
+            });
+            this.#makeLbwGroupWrapper();
         } else {
-            const lbwValues = this.#getLbwWeightData().join(",");
-            const supportType = WeightHelper.NETWORK_MODULE_TO_LORA_TYPE[this.networkModule];
-            if (lbwValues in this.lbwPresetsValueKeyMap[supportType][this.sdVersion]) {
-                this.domPresetSelect.value = lbwValues;
+            const domPresetSelect = this.domCustomContextMenu.querySelector(".preset-select");
+            if (this.weightData.special) {
+                domPresetSelect.value = this.weightData.special;
             } else {
-                this.domPresetSelect.selectedIndex = 0;
+                const lbwValues = this.#getLbwWeightData().join(",");
+                if (lbwValues in this.lbwPresetsValueKeyMap[this.weightData.lbw_lora_type][this.weightData.lbw_sd_version]) {
+                    domPresetSelect.value = lbwValues;
+                } else {
+                    domPresetSelect.selectedIndex = 0;
+                }
             }
-            this.domLbwGroupWrapper.style.display = "flex";
         }
+        const domLbwGroupWrapper = this.domCustomContextMenu.querySelector(".lbw-group-wrapper");
+        domLbwGroupWrapper.style.display = this.weightData.special ? "none" : "flex";
 
         if (!this.usingExecCommand) {
             const updatedText = this.#getUpdatedText();
             this.#update(updatedText);
         }
 
-        const masks = this.#getLbwWeightSetting().masks;
-        const weightDataHash = this.weightData.hashCode(masks);
+        const weightDataHash = this.weightData.hashCode();
         const isBookmarked = this.currentBookmarkSet.has(weightDataHash);
         this.#updateBookmarkedIcon(isBookmarked);
     }
@@ -1099,62 +1180,54 @@ class WeightHelper {
         if (this.weightData.special) {
             return this.weightData.special;
         }
-        const masks = this.#getLbwWeightSetting().masks;
+        const masks = this.#getLbwWeightSetting(this.weightData.lbw_lora_type, this.weightData.lbw_sd_version).masks;
         return this.weightData.lbw.filter((_, i) => masks[i] === 1).map(v => v / 100);
     }
 
-    #getLoraType() {
-        if (this.assumedLoraType) {
-            return this.assumedLoraType;
-        } else if (this.networkModule) {
-            return WeightHelper.NETWORK_MODULE_TO_LORA_TYPE[this.networkModule];
+    #getLbwPresets(loraType, sdVersion) {
+        if (loraType && sdVersion) {
+            if (loraType in this.lbwPresetsMap) {
+                if (sdVersion in this.lbwPresetsMap[loraType]) {
+                    return this.lbwPresetsMap[loraType][sdVersion]
+                }
+            }
         }
-        return undefined;
+        return {};
     }
 
-    #getSdVersion() {
-        if (this.assumedSdVersion) {
-            return this.assumedSdVersion;
-        } else if (this.sdVersion) {
-            return this.sdVersion;
+    #getLbwWeightSetting(loraType, sdVersion) {
+        if (loraType && sdVersion) {
+            if (loraType in WeightHelper.LBW_WEIGHT_SETTINGS) {
+                if (sdVersion in WeightHelper.LBW_WEIGHT_SETTINGS[loraType]) {
+                    return WeightHelper.LBW_WEIGHT_SETTINGS[loraType][sdVersion]
+                }
+            }
         }
-        return this.ckptVersion;
+        return WeightHelper.LBW_WEIGHT_SETTINGS["unknown"];
     }
 
-    #getLbwWeightSetting(supportType, sdVersion) {
-        if (!supportType) {
-            supportType = this.#getLoraType();
+    #getLbwSpecialPreset(loraType, sdVersion) {
+        if (loraType && sdVersion) {
+            if (loraType in WeightHelper.SPECIAL_PRESETS) {
+                if (sdVersion in WeightHelper.SPECIAL_PRESETS[loraType]) {
+                    return WeightHelper.SPECIAL_PRESETS[loraType][sdVersion];
+                }
+            }
         }
-        if (!sdVersion) {
-            sdVersion = this.#getSdVersion();
-        }
-
-        if (supportType && sdVersion) {
-            return this.LBW_WEIGHT_SETTINGS[supportType][sdVersion];
-        } else {
-            return this.LBW_WEIGHT_SETTINGS["unknown"];
-        }
+        return WeightHelper.SPECIAL_PRESETS["unknown"];
     }
 
     #updateBookmarkedIcon(isBookmarked) {
+        const bookmarkIcon = this.domCustomContextMenu.querySelector(".bookmark");
         if (isBookmarked) {
-            this.domBookmarkIcon.className = "bookmark like";
+            bookmarkIcon.className = "bookmark like";
         } else {
-            this.domBookmarkIcon.className = "bookmark unlike";
+            bookmarkIcon.className = "bookmark unlike";
         }
     }
 
     #getUpdatedText() {
-        let tagName = undefined;
-        if (this.assumedLoraType) {
-            tagName = this.assumedLoraType;
-        } else if (this.networkModule) {
-            tagName = WeightHelper.NETWORK_MODULE_TO_TAG_NAME[this.networkModule];
-        } else {
-            tagName = this.tagName;
-        }
-        tagName = opts.weight_helper_use_lyco_tag ? tagName : "lora";
-        let updatedText = `<${tagName}:${this.name}`;
+        let updatedText = `<${this.tagName}:${this.name}`;
         const optionalTypes = ["te", "unet", "dyn"];
         let refIdx = 0;
         for (let idx = 0; idx < optionalTypes.length; idx++) {
@@ -1196,7 +1269,7 @@ class WeightHelper {
         }
 
         let lbwWeights = [];
-        const masks = this.#getLbwWeightSetting().masks;
+        const masks = this.#getLbwWeightSetting(this.weightData.lbw_lora_type, this.weightData.lbw_sd_version).masks;
         for (let idx = 0; idx < masks.length; idx++) {
             if (masks[idx]) {
                 lbwWeights.push(this.weightData.lbw[idx]);
@@ -1207,8 +1280,8 @@ class WeightHelper {
                 let rateValues = lbwWeights.map(v => v / 100).join(",");
                 const lbwValues = this.#getLbwWeightData().join(",");
 
-                let loraType = this.#getLoraType();
-                let sdVersion = this.#getSdVersion();
+                let loraType = this.weightData.lbw_lora_type;
+                let sdVersion = this.weightData.lbw_sd_version;
                 if (loraType && sdVersion) {
                     if (lbwValues in this.lbwPresetsValueKeyMap[loraType][sdVersion]) {
                         rateValues = this.lbwPresetsValueKeyMap[loraType][sdVersion][lbwValues];
@@ -1232,75 +1305,112 @@ class WeightHelper {
     }
 
     #updateWithExecCommand(updatedText) {
-        let tacActiveInOrg = undefined;
-        if (typeof TAC_CFG !== 'undefined' && TAC_CFG) {
-            tacActiveInOrg = TAC_CFG.activeIn.global
-            TAC_CFG.activeIn.global = false;
-        }
-        this.textarea.focus();
-        this.textarea.setSelectionRange(this.lastSelectionStart, this.lastSelectionEnd);
-        document.execCommand("insertText", false, updatedText);
-        if (typeof TAC_CFG !== 'undefined' && TAC_CFG) {
-            TAC_CFG.activeIn.global = tacActiveInOrg;
-        }
+        this.#withoutTAC(() => {
+            this.textarea.focus();
+            this.textarea.setSelectionRange(this.lastSelectionStart, this.lastSelectionEnd);
+            document.execCommand("insertText", false, updatedText);
+        });
     }
 
     #doSave() {
-        weight_helper_type[this.nameHash] = { "sdVersion": this.sdVersion, "networkModule": this.networkModule };
+        const loraInfo = weight_helper_data[this.nameHash].lora_info;
+        loraInfo.metadata = this.metadata;
+        loraInfo.selected_lora_type.lbw_lora_type = this.weightData.lbw_lora_type;
+        loraInfo.selected_lora_type.lbw_sd_version = this.weightData.lbw_sd_version;
 
         const lbwDefault = this.WEIGHT_SETTINGS.lbw.default;
-        const masks = this.#getLbwWeightSetting().masks;
+        const masks = this.#getLbwWeightSetting(this.weightData.lbw_lora_type, this.weightData.lbw_sd_version).masks;
         for (let idx = 0; idx < masks.length; idx++) {
             if (masks[idx] !== 1) {
                 this.weightData.lbw[idx] = lbwDefault;
             }
         }
 
-        const historyLen = this.currentHistory.length;
-        let lastWeightData = this.currentHistory.at(-1);
-        let historyChanged = false;
-        if (this.historyIndex == historyLen - 1) {
-            historyChanged = !this.weightData.equals(lastWeightData);
-            if (historyChanged) {
+        if (this.weightData.lbw_lora_type && this.weightData.lbw_sd_version) {
+            const historyLen = this.currentHistory.length;
+            let lastWeightData = this.currentHistory.at(-1);
+            let historyChanged = false;
+            if (this.historyIndex == historyLen - 1) {
+                historyChanged = !this.weightData.equals(lastWeightData);
+                if (historyChanged) {
+                    this.currentHistory.push(this.weightData);
+                }
+            } else {
+                this.currentHistory.splice(this.historyIndex, 1);
                 this.currentHistory.push(this.weightData);
             }
-        } else {
-            this.currentHistory.splice(this.historyIndex, 1);
-            this.currentHistory.push(this.weightData);
+            if (this.weightData.stop[0] == this.WEIGHT_SETTINGS.stop.default) {
+                this.weightData.stop[0] = null;
+            }
+            weight_helper_data[this.nameHash].bookmark = this.currentBookmarkSet.getAll();
         }
-        if (this.weightData.stop[0] == this.WEIGHT_SETTINGS.stop.default) {
-            this.weightData.stop[0] = null;
-        }
-        weight_helper_bookmark[this.nameHash] = this.currentBookmarkSet.getAll();
-        localStorage.setItem("weight_helper_bookmark", JSON.stringify(weight_helper_bookmark));
+        localStorage.setItem("weight_helper_data", JSON.stringify(weight_helper_data));
     }
 
-    #makePreview() {
-        const modelName = this.loraInfo.model_name;
-        const previewUrl = this.loraInfo.preview_url;
-        const hasMetadata = this.loraInfo.has_metadata;
-        const description = this.loraInfo.description;
-        const modelId = this.loraInfo.model_id;
-        const triggerWords = this.loraInfo.trigger_words ?? [];
-        if (previewUrl) {
+    async #loadMetadata(force = false) {
+        const domMetadata = this.domCustomContextMenu.getElementsByClassName("metadata")[0];
+        const typeVal = domMetadata.getElementsByClassName("metadata__alg")[0];
+        const sdVerVal = domMetadata.getElementsByClassName("metadata__sdver")[0];
+        if (force) {
+            domMetadata.classList.remove("error");
+            typeVal.innerText = "-----";
+            sdVerVal.innerText = "-----";
+        }
+        if (force || Object.keys(this.metadata).length == 0) {
+            const key = encodeURIComponent(this.name);
+            this.metadata = await this.#postAPI(`/whapi/v1/get_metadata?key=${key}`, null) ?? {};
+        }
+        if (Object.keys(this.metadata).length > 0) {
+            if (this.metadata.sd_version && !this.weightData.lbw_sd_version) {
+                const sdVersionRadios = this.domCustomContextMenu.querySelectorAll(".sd-version");
+                this.weightData.lbw_sd_version = this.metadata.sd_version === "SDXL" ? "SDXL" : "SD";
+                if (this.currentHistory.length == 1) {
+                    this.currentHistory[0].lbw_sd_version = this.weightData.lbw_sd_version;
+                }
+                let selectedRadio = undefined;
+                sdVersionRadios.forEach((radio) => {
+                    if (radio.value === this.weightData.lbw_sd_version) {
+                        radio.checked = true;
+                        selectedRadio = radio;
+                    }
+                });
+                if (selectedRadio) {
+                    selectedRadio.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+            typeVal.innerText = this.metadata.algorithm ?? "Unknown";
+            sdVerVal.innerText = this.metadata.sd_version ?? "Unknown";
+        } else {
+            metadata.classList.add("error");
+            typeVal.innerText = "TIMEOUT";
+            sdVerVal.innerText = "TIMEOUT";
+        }
+    }
+
+    async #loadPreviewInfo() {
+        if (Object.keys(this.previewInfo).length == 0) {
+            const key = encodeURIComponent(this.name);
+            this.previewInfo = await this.#postAPI(`/whapi/v1/get_preview_info?key=${key}`, null);
+        }
+        if (Object.keys(this.previewInfo).length > 0) {
             const pane = document.createElement("div");
             pane.className = "preview-pane card";
-            pane.dataset.name = modelName;
+            pane.dataset.name = this.previewInfo.model_name;
 
             const img = document.createElement("img");
             img.className = "preview";
-            img.setAttribute("src", previewUrl);
+            img.setAttribute("src", this.previewInfo.preview_url);
             pane.appendChild(img);
 
             const buttonTop = document.createElement("div");
             buttonTop.className = "action-row button-top";
             pane.appendChild(buttonTop);
 
-            if (typeof extraNetworksRequestMetadata === "function" && hasMetadata) {
+            if (typeof extraNetworksRequestMetadata === "function" && this.previewInfo.has_metadata) {
                 const metadataButton = document.createElement("div");
                 metadataButton.className = "metadata-btn card-btn";
                 metadataButton.setAttribute("title", "Show internal metadata");
-                this.#bind(metadataButton, "click", (e) => extraNetworksRequestMetadata(e, 'lora', modelName));
+                this.#bind(metadataButton, "click", (e) => extraNetworksRequestMetadata(e, 'lora', this.previewInfo.model_name));
                 buttonTop.appendChild(metadataButton);
             }
 
@@ -1308,50 +1418,77 @@ class WeightHelper {
                 const editButton = document.createElement("div");
                 editButton.className = "edit-btn card-btn";
                 editButton.setAttribute("title", "Edit metadata");
-                this.#bind(editButton, "click", (e) => extraNetworksEditUserMetadata(e, this.tabId, 'lora', modelName));
+                this.#bind(editButton, "click", (e) => extraNetworksEditUserMetadata(e, this.tabId, 'lora', this.previewInfo.model_name));
                 buttonTop.appendChild(editButton);
             }
 
-            if (modelId) {
+            if (this.previewInfo.model_id) {
                 const civitaiButton = document.createElement("div");
                 civitaiButton.className = "civitai-btn card-btn";
                 civitaiButton.setAttribute("title", "Open civitai");
-                this.#bind(civitaiButton, "click", () => window.open(`https://civitai.com/models/${modelId}`, '_blank'));
+                this.#bind(civitaiButton, "click", () => window.open(`https://civitai.com/models/${this.previewInfo.model_id}`, '_blank'));
                 buttonTop.appendChild(civitaiButton);
             }
 
-            if (triggerWords.length > 0) {
+            const triggerWords = this.previewInfo.trigger_words ?? [];
+            const negativeTriggerWords = this.previewInfo.negative_trigger_words ?? [];
+            if (triggerWords.length > 0 || negativeTriggerWords.length > 0) {
                 const addTriggerButton = document.createElement("div");
                 addTriggerButton.className = "add-trigger-btn card-btn";
                 addTriggerButton.setAttribute("title", "Add trigger words");
                 this.#bind(addTriggerButton, "click", () => {
-                    const addWords = ", " + triggerWords.join(", ");
+                    let promptTextarea = document.querySelector(`#${this.tabId}_prompt textarea`);
+                    let negativeTextarea = document.querySelector(`#${this.tabId}_neg_prompt textarea`);
+                    if (this.textarea === negativeTextarea) {
+                    } else if (this.textarea !== promptTextarea) {
+                        promptTextarea = this.textarea;
+                        negativeTextarea = null;
+                    }
                     if (!this.usingExecCommand) {
-                        const head = this.textarea.value.substring(0, this.lastSelectionEnd);
-                        const tail = this.textarea.value.substring(this.lastSelectionEnd);
-                        if (tail && tail.indexOf(" ") > 0) {
-                            tail = " " + tail;
+                        if (negativeTriggerWords.length > 0 && negativeTextarea) {
+                            let addNegativeWords = negativeTriggerWords.join(", ");
+                            if (negativeTextarea.value) {
+                                addNegativeWords = ", " + addNegativeWords;
+                            }
+                            negativeTextarea.value += addNegativeWords;
                         }
-                        this.textarea.value = head + addWords + tail;
+                        if (triggerWords.length > 0) {
+                            let addPromptWords = triggerWords.join(", ");
+                            if (promptTextarea.value) {
+                                addPromptWords = ", " + addPromptWords;
+                            }
+                            promptTextarea.value += addPromptWords;
+                        }
                     } else {
-                        let tacActiveInOrg = undefined;
-                        if (typeof TAC_CFG !== 'undefined' && TAC_CFG) {
-                            tacActiveInOrg = TAC_CFG.activeIn.global
-                            TAC_CFG.activeIn.global = false;
-                        }
-                        this.textarea.focus();
-                        this.textarea.setSelectionRange(this.lastSelectionEnd, this.lastSelectionEnd);
-                        document.execCommand("insertText", false, addWords);
-                        if (typeof TAC_CFG !== 'undefined' && TAC_CFG) {
-                            TAC_CFG.activeIn.global = tacActiveInOrg;
-                        }
+                        this.#withoutTAC(() => {
+                            if (negativeTriggerWords.length > 0 && negativeTextarea) {
+                                let addNegativeWords = negativeTriggerWords.join(", ");
+                                if (negativeTextarea.value) {
+                                    addNegativeWords = ", " + addNegativeWords;
+                                }
+                                negativeTextarea.focus();
+                                const eolIndex = negativeTextarea.value.length;
+                                negativeTextarea.setSelectionRange(eolIndex, eolIndex);
+                                document.execCommand("insertText", false, addNegativeWords);
+                            }
+                            if (triggerWords.length > 0) {
+                                let addPromptWords = triggerWords.join(", ");
+                                if (promptTextarea.value) {
+                                    addPromptWords = ", " + addPromptWords;
+                                }
+                                promptTextarea.focus();
+                                const eolIndex = promptTextarea.value.length;
+                                promptTextarea.setSelectionRange(eolIndex, eolIndex);
+                                document.execCommand("insertText", false, addPromptWords);
+                            }
+                        });
                     }
                     addTriggerButton.remove();
                 });
                 buttonTop.appendChild(addTriggerButton);
             }
 
-            if (description) {
+            if (this.previewInfo.description) {
                 const buttonBottom = document.createElement("div");
                 buttonBottom.className = "action-row button-bottom";
                 pane.appendChild(buttonBottom);
@@ -1368,7 +1505,7 @@ class WeightHelper {
 
                 const actDesc = document.createElement("textarea");
                 actDesc.className = "description";
-                actDesc.textContent = description;
+                actDesc.textContent = this.previewInfo.description;
                 pane.appendChild(actDesc);
 
                 const actDescClose = document.createElement("div");
@@ -1410,6 +1547,15 @@ class WeightHelper {
         this.releaseFunctions.push(() => dom.removeEventListener(eventName, func));
     }
 
+    async #postAPI(url, body) {
+        let response = await fetch(url, { method: "POST", body: body });
+        if (response.status != 200) {
+            console.error(`Error posting to API endpoint "${url}": ` + response.status, response.statusText);
+            return null;
+        }
+        return await response.json();
+    }
+
     show(top, left) {
         this.domCustomContextMenu.style.top = top + 'px';
         this.domCustomContextMenu.style.left = left + 'px';
@@ -1426,8 +1572,10 @@ class WeightHelper {
         this.#bind(document.body, "keyup", this.cancel);
         WeightHelper.last_instance = this;
 
+        this.#loadMetadata();
+
         if (opts.weight_helper_show_preview) {
-            this.#makePreview();
+            this.#loadPreviewInfo();
         }
     }
 
@@ -1470,30 +1618,39 @@ class WeightHelper {
     };
 
     finally() {
+        weight_helper_preview_info[this.nameHash] = this.previewInfo;
+
         WeightHelper.last_instance = undefined;
         this.releaseFunctions.forEach((f) => f());
         this.domCustomContextMenu.remove();
+    }
+
+    #withoutTAC(func) {
+        let tacActiveInOrg = undefined;
+        const tacEnabled = typeof TAC_CFG !== 'undefined' && TAC_CFG;
+        try {
+            if (tacEnabled) {
+                tacActiveInOrg = TAC_CFG.activeIn.global
+                TAC_CFG.activeIn.global = false;
+            }
+            func();
+        } finally {
+            if (tacEnabled) {
+                TAC_CFG.activeIn.global = tacActiveInOrg;
+            }
+        }
     }
 }
 
 function strHashCode(s) {
     let hash = 0;
-    if (s.length === 0) return hash;
+    if (!s) return hash;
     for (let i = 0; i < s.length; i++) {
         const char = s.charCodeAt(i);
         hash = hash ^ char;
         hash = (hash << 5) - hash;
     }
     return hash & 0xffffffff;
-}
-
-async function postAPI(url, body) {
-    let response = await fetch(url, { method: "POST", body: body });
-    if (response.status != 200) {
-        console.error(`Error posting to API endpoint "${url}": ` + response.status, response.statusText);
-        return null;
-    }
-    return await response.json();
 }
 
 async function onPageLoaded() {
@@ -1508,26 +1665,12 @@ async function onPageLoaded() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    weight_helper_type = {};
-    weight_helper_bookmark = {};
-    weight_helper_history = {};
-    const historyTemp = JSON.parse(localStorage.getItem("weight_helper_bookmark"));
-    if (historyTemp) {
-        const weightSet = new Set();
-        Object.keys(historyTemp).forEach(nameHash => {
-            weight_helper_bookmark[nameHash] = [];
-            weight_helper_history[nameHash] = [];
-            weightSet.clear();
-            historyTemp[nameHash].filter(v => v.VERSION === VERSION && !v.special).forEach(v => {
-                const weightData = new WeightData(v);
-                if (!weightSet.has(weightData)) {
-                    weight_helper_bookmark[nameHash].push(weightData);
-                    weight_helper_history[nameHash].push(weightData);
-                    weightSet.add(weightData);
-                }
-            });
-        });
-    }
+    const dataTemp = JSON.parse(localStorage.getItem("weight_helper_data")) ?? {};
+    weight_helper_data = dataTemp;
+    Object.entries(dataTemp).forEach(kv => {
+        weight_helper_data[kv[0]].bookmark = kv[1].bookmark.map(v => new WeightData(v));
+        weight_helper_data[kv[0]].history = kv[1].history.map(v => new WeightData(v));
+    });
 
     onPageLoaded().then(() => {
         let textColor = getComputedStyle(document.documentElement).getPropertyValue('--body-text-color').trim();
@@ -1552,4 +1695,17 @@ document.addEventListener('DOMContentLoaded', function() {
             WeightHelper.attach(textarea);
         });
     });
+
+    fetch(`/file=extensions/${WeightHelper.PLUGIN_DIRNAME}/icon/reload.svg`)
+        .then(response => response.text())
+        .then(svg => {
+            WeightHelper.SVG_RELOAD = svg;
+        }
+    );
+    fetch(`/file=extensions/${WeightHelper.PLUGIN_DIRNAME}/icon/lock.svg`)
+        .then(response => response.text())
+        .then(svg => {
+            WeightHelper.SVG_LOCK = svg;
+        }
+    );
 });
