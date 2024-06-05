@@ -21,6 +21,9 @@ class WeightHelperAPI:
             WeightHelperAPI.instance = WeightHelperAPI()
 
         instance = WeightHelperAPI.instance
+        @app.post(prefix + "/get_template")
+        async def _():
+            return instance.get_template()
         @app.post(prefix + "/get_metadata")
         async def _(key: str):
             return instance.get_metadata(key)
@@ -51,6 +54,14 @@ class WeightHelperAPI:
                 lora_on_disk = next((v for v in networks_lora.available_network_aliases.values() if v.alias == key), None)
             return lora_on_disk
         return None
+
+    def get_template(self):
+        template_path = os.path.join(__file__, "../../html/template.hbs")
+        try:
+            with open(template_path, "r", encoding="utf-8", errors="replace") as f:
+                return f.read()
+        except OSError:
+            pass
 
     def get_metadata(self, key):
         sd_version = None

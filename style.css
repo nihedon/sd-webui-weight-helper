@@ -95,6 +95,8 @@
     border: 1px solid var(--block-info-text-color);
     text-align: left;
     flex: 1 1 50%;
+    display: flex;
+    align-items: stretch;
 }
 #weight-helper .metadata > span > span:nth-child(1) {
     color: var(--block-label-text-color);
