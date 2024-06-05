@@ -31,8 +31,8 @@
   </wh:preview>
   <header id="wh:header">
     <span>
-      {{#with bookmark}}
-        <span id="wh:bookmark" class="bookmark {{flag}}" style="{{visible visible}}">
+      {{#with lock}}
+        <span id="wh:lock" class="lock {{flag}}" style="{{visible visible}}">
           <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24">
             <path d="M21,10H19V7A7,7,0,0,0,5,7v3H3a1,1,0,0,0-1,1v9a4,4,0,0,0,4,4H18a4,4,0,0,0,4-4V11A1,1,0,0,0,21,10Zm-9,9.5A2.5,2.5,0,1,1,14.5,17,2.5,2.5,0,0,1,12,19.5ZM15,10H9V7a3,3,0,0,1,6,0v3Z"></path>
           </svg>
@@ -55,7 +55,7 @@
       <span id="wh:metadata__alg">-----</span>
     </span>
     <span>
-      <span>SD Ver:</span>
+      <span>SD:</span>
       <span id="wh:metadata__sdver">-----</span>
     </span>
     <a id="wh:reload" class="icon mini svg">

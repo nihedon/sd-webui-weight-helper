@@ -1,5 +1,6 @@
 import ast
 import os
+from typing import Any, Optional
 import gradio as gr
 import importlib
 import json
@@ -63,98 +64,92 @@ class WeightHelperAPI:
         except OSError:
             pass
 
-    def get_metadata(self, key):
-        sd_version = None
-        algorithm = None
+    def get_metadata(self, key) -> dict[str, Optional[str]]:
+        ret: dict[str, Optional[str]] = {
+            "sd_version": None,
+            "algorithm": None,
+            "base_model": None
+        }
 
         lora_on_disk = self.__get_lora_on_disk(key)
         if lora_on_disk:
-            sd_version = self.__get_sd_version(lora_on_disk)
-            algorithm = self.__get_algorithm(lora_on_disk)
+            ret["sd_version"] = self.__get_sd_version(lora_on_disk)
 
-        metadata = {
-            "sd_version": sd_version,
-            "algorithm": algorithm
-        }
-        if lora_on_disk:
+            metadata = lora_on_disk.metadata
+            ss_network_args = self.__get_network_args(lora_on_disk)
+            ret["algorithm"] = self.__get_algorithm(metadata, ss_network_args)
+
             model_path, _ = os.path.splitext(lora_on_disk.filename)
             lora_json = self.__get_lora_json(model_path)
-            if lora_json:
-                if lora_json["sd version"]:
-                    metadata["sd_version"] = lora_json["sd version"]
+            json_sd_version = lora_json.get("sd version", None)
+            if json_sd_version:
+                ret["sd_version"] = json_sd_version
 
-        return metadata
+            civitai_info = self.__find_civitai_info(model_path)
+            ret["base_model"] = civitai_info.get("baseModel", None)
+
+        return ret
 
     def get_preview_info(self, key):
-        model_name = key
-        model_path = None
-        model_id = None
-        trigger_words = []
+        ret: dict[str, Optional[bool | str | list[str]]] = {
+            "model_id": None,
+            "trigger_words": None,
+            "negative_trigger_words": [],
+            "model_name": None,
+            "preview_url": None,
+            "has_metadata": False,
+            "description": None,
+        }
 
         lora_on_disk = self.__get_lora_on_disk(key)
         if lora_on_disk:
             model_path, _ = os.path.splitext(lora_on_disk.filename)
-            model_name = lora_on_disk.name
+            ret["model_name"] = lora_on_disk.name
+            ret["preview_url"] = self.__find_preview(model_path)
+            ret["has_metadata"] = self.__find_metadata(lora_on_disk)
+            ret["description"] = self.__find_description(model_path)
 
-        preview_url = self.__find_preview(model_path)
-        has_metadata = self.__find_metadata(lora_on_disk)
-        description = self.__find_description(model_path)
-        civitai_info = self.__find_civitai_info(model_path)
-        if civitai_info:
-            model_id = civitai_info.get("modelId")
-            trigger_words = ",".join(civitai_info.get("trainedWords")).split(",")
-            trigger_words = [w.strip() for w in trigger_words if w]
+            trigger_words = []
+            civitai_info = self.__find_civitai_info(model_path)
+            ret["model_id"] = civitai_info.get("modelId", None)
+            trigger_words = civitai_info.get("trainedWords", [])
+            trigger_words = ",".join(trigger_words).split(",")
+            ret["trigger_words"] = [w.strip() for w in trigger_words if w]
 
-        preview_info = {
-            "model_id": model_id,
-            "trigger_words": trigger_words,
-            "negative_trigger_words": [],
-            "model_name": model_name,
-            "preview_url": preview_url,
-            "has_metadata": has_metadata,
-            "description": description,
-        }
-
-        if lora_on_disk:
-            model_path, _ = os.path.splitext(lora_on_disk.filename)
             lora_json = self.__get_lora_json(model_path)
-            if lora_json:
-                if lora_json["activation text"]:
-                    activation_text = lora_json["activation text"]
-                    activation_text = activation_text.split(",")
-                    activation_text = [w.strip() for w in activation_text if w]
-                    preview_info["trigger_words"] = activation_text
-                if lora_json["negative text"]:
-                    negative_text = lora_json["negative text"]
-                    negative_text = negative_text.split(",")
-                    negative_text = [w.strip() for w in negative_text if w]
-                    preview_info["negative_trigger_words"] = negative_text
-                if lora_json["description"]:
-                    preview_info["description"] = lora_json["description"]
 
-        return preview_info
+            activation_text = lora_json.get("activation text", "")
+            if activation_text:
+                activation_text = activation_text.split(",")
+                activation_text = [w.strip() for w in activation_text if w]
+                ret["trigger_words"] = activation_text
 
-    def __get_sd_version(self, lora):
-        sd_version = lora.sd_version.name
+            negative_text = lora_json.get("negative text", "")
+            if negative_text:
+                negative_text = negative_text.split(",")
+                negative_text = [w.strip() for w in negative_text if w]
+                ret["negative_trigger_words"] = negative_text
+
+            json_description = lora_json.get("description", None)
+            if json_description:
+                ret["description"] = json_description
+
+        return ret
+
+    def __get_sd_version(self, lora) -> Optional[str]:
+        sd_version: Optional[str] = lora.sd_version.name
         if sd_version:
             if sd_version == self.network.SdVersion.SD1.name or sd_version == self.network.SdVersion.SD2.name:
-                sd_version = "SD"
+                return "SD"
             elif sd_version == self.network.SdVersion.SDXL.name:
-                sd_version = "SDXL"
-            else:
-                sd_version = None
-        else:
-            sd_version = None
+                return "SDXL"
+            return sd_version
+        return None
 
-        return sd_version
-
-    def __get_algorithm(self, lora):
-        metadata = lora.metadata
+    def __get_algorithm(self, metadata, ss_network_args) -> Optional[str]:
         ss_network_module = metadata.get("ss_network_module")
         if not ss_network_module or ss_network_module == "Unknown":
             return None
-
-        ss_network_args = self.__get_network_args(lora)
 
         conv_dim = float(ss_network_args.get("conv_dim", "-1"))
         conv_alpha = float(ss_network_args.get("conv_alpha", "-1"))
@@ -199,7 +194,7 @@ class WeightHelperAPI:
         else:
             return "LoRA(LierLa)"
 
-    def __get_network_args(self, lora):
+    def __get_network_args(self, lora) -> dict[str, Any]:
         metadata = lora.metadata
         ss_network_args = metadata.get("ss_network_args", {})
         if type(ss_network_args) is str:
@@ -209,7 +204,7 @@ class WeightHelperAPI:
                 ss_network_args = {}
         return ss_network_args
 
-    def __get_lora_json(self, path):
+    def __get_lora_json(self, path) -> dict[str, Any]:
         if path:
             lora_json = f"{path}.json"
             if os.path.exists(lora_json):
@@ -220,14 +215,14 @@ class WeightHelperAPI:
                     pass
         return {}
 
-    def __link_preview(self, filename):
+    def __link_preview(self, filename) -> str:
         quoted_filename = urllib.parse.quote(filename.replace('\\', '/'))
         #use browser cache
         #mtime, _ = self.lister.mctime(filename)
         #return f"./sd_extra_networks/thumb?filename={quoted_filename}&mtime={mtime}"
         return f"./sd_extra_networks/thumb?filename={quoted_filename}"
 
-    def __find_preview(self, path):
+    def __find_preview(self, path) -> str:
         if path:
             potential_files = sum([[f"{path}.{ext}", f"{path}.preview.{ext}"] for ext in allowed_preview_extensions], [])
             for file in potential_files:
@@ -235,11 +230,11 @@ class WeightHelperAPI:
                     return self.__link_preview(file)
         return "./file=html/card-no-preview.png"
 
-    def __find_metadata(self, lora):
+    def __find_metadata(self, lora) -> bool:
         return len(lora.metadata) > 0 if lora else False
 
     #@functools.cache
-    def __find_description(self, path):
+    def __find_description(self, path) -> Optional[str]:
         if path:
             for file in [f"{path}.txt", f"{path}.description.txt"]:
                 if os.path.exists(file):
@@ -251,7 +246,7 @@ class WeightHelperAPI:
         return None
 
     #@functools.cache
-    def __find_civitai_info(self, path):
+    def __find_civitai_info(self, path) -> dict[str, Any]:
         if path:
             civitai_info = f"{path}.civitai.info"
             if os.path.exists(civitai_info):

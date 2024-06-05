@@ -31,15 +31,15 @@
     text-overflow: ellipsis;
     pointer-events: none;
 }
-#weight-helper > header .bookmark {
+#weight-helper > header .lock {
     width: 16px;
     height: 20px;
     cursor: pointer;
 }
-#weight-helper > header .bookmark.unlike > svg {
+#weight-helper > header .lock.unlike > svg {
     fill: var(--checkbox-background-color);
 }
-#weight-helper > header .bookmark.like > svg {
+#weight-helper > header .lock.like > svg {
     fill: var(--checkbox-border-color-selected);
 }
 #weight-helper > header .page {
