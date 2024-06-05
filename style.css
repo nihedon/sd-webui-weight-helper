@@ -107,6 +107,12 @@
 #weight-helper .metadata > span > span:nth-child(2) {
     margin-left: 6px;
 }
+#weight-helper .metadata > span > span:nth-child(2).loading {
+    display: block;
+    width: 100%;
+    text-align: center;
+    margin-left: 0;
+}
 #weight-helper .metadata.error > span > span:nth-child(2) {
     color: var(--error-text-color);
 }

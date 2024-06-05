@@ -1023,12 +1023,31 @@
             const sdVerVal = document.getElementById("wh:metadata__sdver");
             if (force) {
                 domMetadata.classList.remove("error");
-                typeVal.textContent = "-----";
-                sdVerVal.textContent = "-----";
             }
             if (force || Object.keys(this.metadata).length == 0) {
+                const startLoading = (elem) => {
+                    if (elem.dataset.interval_id == null) {
+                        elem.classList.add("loading");
+                        const frames = ["-", "--", "---", "----", "-----", "------", "-------"];
+                        let currentFrame = 0;
+                        elem.dataset.interval_id = setInterval(() => {
+                            elem.textContent = frames[currentFrame];
+                            currentFrame = (currentFrame + 1) % frames.length;
+                        }, 100);
+                    }
+                }
+                const stopLoading = (elem) => {
+                    if (elem.dataset.interval_id != null) {
+                        elem.classList.remove("loading");
+                        clearInterval(elem.dataset.interval_id);
+                    }
+                }
+                startLoading(typeVal);
+                startLoading(sdVerVal);
                 const key = encodeURIComponent(this.name);
                 this.metadata = await postAPI(`/whapi/v1/get_metadata?key=${key}`, null) ?? {};
+                stopLoading(typeVal);
+                stopLoading(sdVerVal);
             }
             if (Object.keys(this.metadata).length > 0) {
                 if (this.metadata.sd_version && !this.weightData.lbw_sd_version) {
