@@ -3,9 +3,6 @@
 (function() {
     const VERSION = "1.2.0"
 
-    localStorage.removeItem("weight_helper");
-    localStorage.removeItem("weight_helper_type");
-
     var jq;
 
     var weight_helper_data = {};
@@ -116,7 +113,6 @@
     var last_instance = undefined;
 
     class WeightData {
-        VERSION;
         lbw_lora_type;
         lbw_sd_version;
         te;
@@ -129,7 +125,6 @@
         lbw;
         lbwe;
         special;
-        masks;
 
         constructor(data) {
             if (data) {
@@ -189,8 +184,12 @@
                     return false;
                 }
             } else {
+                let masks = null;
+                if (this.lbw_lora_type && this.lbw_sd_version) {
+                    masks = LBW_WEIGHT_SETTINGS[this.lbw_lora_type][this.lbw_sd_version].masks;
+                }
                 for (let i = 0; i < this.lbw.length; i++) {
-                    if ((!this.masks || this.masks[i] === 1) && this.lbw[i] !== other.lbw[i]) {
+                    if ((!masks || masks[i] === 1) && this.lbw[i] !== other.lbw[i]) {
                         return false;
                     }
                 }
@@ -213,8 +212,12 @@
             if (this.isSpecial()) {
                 hash = calcHash(strHashCode(this.special));
             } else {
+                let masks = null;
+                if (this.lbw_lora_type && this.lbw_sd_version) {
+                    masks = LBW_WEIGHT_SETTINGS[this.lbw_lora_type][this.lbw_sd_version].masks;
+                }
                 for (let i = 0; i < this.lbw.length; i++) {
-                    const val = !this.masks || this.masks[i] === 1 ? this.lbw[i] : 0;
+                    const val = !masks || masks[i] === 1 ? this.lbw[i] : 0;
                     hash = calcHash(val);
                 }
             }
@@ -441,7 +444,6 @@
                 this.weightData[weightType].push(WEIGHT_SETTINGS[weightType].default);
             }
 
-            this.weightData.VERSION = VERSION;
             this.weightData.lbw = [];
             this.weightData.lbwe = [];
             this.weightData.special = "";
@@ -1242,9 +1244,6 @@
             Object.entries(this.weightData).map(entry => {
                 const group = entry[0];
                 const vals = entry[1];
-                if (group === "VERSION") {
-                    return;
-                }
                 if (group === "stop" && vals[0] == null) {
                     vals[0] = WEIGHT_SETTINGS[group].default;
                 }
@@ -1471,6 +1470,7 @@
                 }
                 weight_helper_data[this.nameHash].lock = this.currentLockSet.getAll();
             }
+            weight_helper_data.VERSION = VERSION;
             localStorage.setItem("weight_helper_data", JSON.stringify(weight_helper_data));
         }
 
@@ -1607,10 +1607,64 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         const dataTemp = JSON.parse(localStorage.getItem("weight_helper_data")) ?? {};
+
+        const oldData = JSON.parse(localStorage.getItem("weight_helper"));
+        const oldDataType = JSON.parse(localStorage.getItem("weight_helper_type"));
+        try {
+            if (oldData && Object.keys(oldData).length > 0) {
+                Object.entries(oldData).forEach(kv => {
+                    const key = kv[0];
+                    const datas = kv[1];
+
+                    delete dataTemp[key]
+                    const sdType = oldDataType[key];
+
+                    let lbwSdVersion = sdType == "sdxl" ? "SDXL" : "SD";
+                    datas.forEach(data => {
+                        delete data.VERSION;
+                        delete data.DATE;
+                        if (data.unet[0] != null) {
+                            data.use_unet = true;
+                        } else {
+                            data.use_unet = false;
+                            data.unet[0] = 0;
+                        }
+                        if (data.dyn[0] != null) {
+                            data.use_dyn = true;
+                        } else {
+                            data.use_dyn = false;
+                            data.dyn[0] = 0;
+                        }
+                        data.stop = [null];
+                        data.special = "";
+                        data.lbw_lora_type = "lora";
+                        data.lbw_sd_version = lbwSdVersion;
+                    });
+                    dataTemp[key] = { lock: [] }
+                    dataTemp[key].history = datas;
+                    dataTemp[key].lora_info = {
+                        "selected_lora_type": {
+                            "lbw_lora_type": "lora",
+                            "lbw_sd_version": lbwSdVersion
+                        }
+                    }
+                });
+            }
+            localStorage.removeItem("weight_helper");
+            localStorage.removeItem("weight_helper_type");
+        } catch (error) {
+            console.error("An error occurred:", error);
+        }
+
         weight_helper_data = dataTemp;
         Object.entries(dataTemp).forEach(kv => {
-            weight_helper_data[kv[0]].lock = kv[1].lock.map(v => new WeightData(v));
-            weight_helper_data[kv[0]].history = kv[1].history.map(v => new WeightData(v));
+            const key = kv[0];
+            if (key === "VERSION") {
+                return;
+            }
+            const val = kv[1];
+            weight_helper_data[key].lock = val.lock.map(v => new WeightData(v));
+            weight_helper_data[key].history = val.history.map(v => new WeightData(v));
         });
 
         onPageLoaded().then(() => {
