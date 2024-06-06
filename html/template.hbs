@@ -80,7 +80,7 @@
     </a>
   </span>
   {{#each weights}}
-    <section id="wh:weight_{{this.group}}" class="wh:weight border" data-group="{{this.group}}" style="{{display this.visible}}">
+    <section id="wh:weight_{{this.group}}" class="wh:weight border p" data-group="{{this.group}}" style="{{display this.visible}}">
       <span>
         <label>{{this.label}}</label>
         {{#if this.useCheck}}
@@ -94,7 +94,7 @@
     </section>
   {{/each}}
   <button id="wh:extra_button" style="{{display extraButton.visible}}">show extra options</button>
-  <section class="border">
+  <section class="border p">
     <label>LBW</label>
     <div class="f col g-4 w-fill">
       <div class="f g-2 f-end">
@@ -103,7 +103,7 @@
             <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.name}}</option>
           {{/each}}
         </select>
-        <div class="border f g-2 f-end">
+        <div class="border p f g-2 f-end">
           <div class="f g-2 f-end">
             {{#each sdvers}}
             <input id="wh:sdver_{{lower this.value}}" class="wh:sdver" value="{{this.value}}" type="radio" name="sd-version" {{checked this.checked}}>
@@ -112,18 +112,28 @@
           </div>
         </div>
       </div>
-      <select class="wh:preset_select">
-        <wh:lbwpresets>
-          <option value=""></option>
-          {{#each presets}}
-            <option value="{{this.value}}" {{selected this.selected}}>{{this.name}}</option>
-          {{/each}}
-        </wh:lbwpresets>
-      </select>
+      <div class="f g-2 f-end">
+        <select class="wh:preset_select" style="flex-grow: 1;">
+          <wh:lbwpresets>
+            <option value=""></option>
+            {{#each presets}}
+              <option value="{{this.value}}" {{selected this.selected}}>{{this.name}}</option>
+            {{/each}}
+          </wh:lbwpresets>
+        </select>
+        <div class="p f g-2 f-end">
+          <div class="f g-2 f-end">
+            {{#with xyz}}
+            <input id="wh:xyz" value="XYZ" type="checkbox" {{checked checked}}>
+            <label id="wh:xyz_label" class="radio-label" for="wh:xyz">{{label}}</label>
+            {{/with}}
+          </div>
+        </div>
+      </div>
       <div class="wh:lbwblocks f col g-2" style="display: flex;">
         <wh:lbwblocks>
           {{#each lbwBlocks}}
-            <div id="wh:lbwblock_{{lower this.label}}" class="border f g-2 col">
+            <div id="wh:lbwblock_{{lower this.label}}" class="border p f g-2 col">
               <wh:lbws>
                 {{#each lbws}}
                   <div class="wh:lbw f g-2">

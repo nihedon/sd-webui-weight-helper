@@ -17,14 +17,14 @@
 
     const SPECIAL_PRESETS = {
         lora: {
-            SD: [{ "XYZ (17)": "XYZ" }],
-            SDXL: [{ "XYZ (12)": "XYZ" }]
+            SD: { XYZ: "XYZ(17)" },
+            SDXL: { XYZ: "XYZ(12)" }
         },
         lycoris: {
-            SD: [{ "XYZ (26)": "XYZ" }],
-            SDXL: [{ "XYZ (20)": "XYZ" }]
+            SD: { XYZ: "XYZ(26)" },
+            SDXL: { XYZ: "XYZ(20)" }
         },
-        unknown: [{ "XYZ (26)": "XYZ" }]
+        unknown: { XYZ: "XYZ(26)" }
     };
 
     const LORA_TYPE_PULLDOWN = {
@@ -338,7 +338,7 @@
             this.multiplier = multiplier;
 
             const samplingSteps = gradioApp().getElementById(`${this.tabId}_steps`).querySelector("input");
-            sampling_steps = parseInt(samplingSteps.value) * 100;
+            sampling_steps = Math.round(samplingSteps.value * 100);
 
             if (opts.weight_helper_using_execCommand) {
                 if (typeof document.execCommand === 'function') {
@@ -383,9 +383,9 @@
             }
 
             for (const k of ["te", "unet", "dyn", "lbw"]) {
-                WEIGHT_SETTINGS[k].min  = opts[`weight_helper_${k}_min`] * 100;
-                WEIGHT_SETTINGS[k].max  = opts[`weight_helper_${k}_max`] * 100;
-                WEIGHT_SETTINGS[k].step = opts[`weight_helper_${k}_step`] * 100;
+                WEIGHT_SETTINGS[k].min  = Math.round(opts[`weight_helper_${k}_min`] * 100);
+                WEIGHT_SETTINGS[k].max  = Math.round(opts[`weight_helper_${k}_max`] * 100);
+                WEIGHT_SETTINGS[k].step = Math.round(opts[`weight_helper_${k}_step`] * 100);
             }
             WEIGHT_SETTINGS.start.max = sampling_steps;
             WEIGHT_SETTINGS.stop.max = sampling_steps;
@@ -502,7 +502,7 @@
                                 let refIdx = 0;
                                 for (let enable of masks) {
                                     if (enable) {
-                                        this.weightData.lbw.push(parseInt(blocks[refIdx] * 100));
+                                        this.weightData.lbw.push(Math.round(blocks[refIdx] * 100));
                                         refIdx++;
                                     } else {
                                         this.weightData.lbw.push(0);
@@ -514,12 +514,12 @@
                     }
                 } else if (group === "step") {
                     const startStop = value.split('-');
-                    this.weightData.start[0] = parseInt(startStop[0]) * 100;
-                    this.weightData.stop[0] = parseInt(startStop[1]) * 100;
+                    this.weightData.start[0] = Math.round(startStop[0] * 100);
+                    this.weightData.stop[0] = Math.round(startStop[1] * 100);
                 } else if (group === "lbwe") {
                     this.weightData[group][0] = value;
                 } else {
-                    this.weightData[group][0] = parseInt(value * 100);
+                    this.weightData[group][0] = Math.round(value * 100);
                 }
             });
             this.weightData.use_unet = this.weightData.unet[0] != null;
@@ -604,7 +604,7 @@
             const weightDataHash = this.weightData.hashCode();
             const isLocked = this.currentLockSet.has(weightDataHash);
             lock.flag = isLocked ? "like" : "unlike";
-            lock.visible = this.weightData.isSpecial() || !this.weightData.lbw_sd_version ? "hidden" : "visible";
+            lock.visible = !this.weightData.isSpecial() && this.weightData.lbw_sd_version;
 
             const weights = []
             mainBindData.weights = weights;
@@ -645,6 +645,8 @@
             mainBindData.extraButton = extraButton;
             if (weights.some(v => !v.visible)) {
                 extraButton.visible = true;
+            } else {
+                this.openedExtraOption = true;
             }
 
             const loraTypes = [];
@@ -668,6 +670,13 @@
                 sdver.checked = sdVersion == this.weightData.lbw_sd_version;
                 sdvers.push(sdver);
             }
+
+            const xyz = {};
+            mainBindData.xyz = xyz;
+
+            const specialPresets = this.getLbwSpecialPreset(this.weightData.lbw_lora_type, this.weightData.lbw_sd_version);
+            xyz.checked = this.weightData.special === "XYZ";
+            xyz.label = specialPresets.XYZ;
         }
 
         setupLbwBindData() {
@@ -683,53 +692,6 @@
                 lbwWeight.group = group;
                 lbwWeight.label = lbwSetting.labels[idx];
                 lbwBindDatas.push(lbwWeight);
-            }
-        }
-
-        setupLbwPresetBindData() {
-            const presetBindDatas = [];
-            this.bindData.lbwPresetBindDatas = presetBindDatas;
-
-            const lbwWeightData = this.getLbwWeightData();
-            const specialPresets = this.getLbwSpecialPreset(this.weightData.lbw_lora_type, this.weightData.lbw_sd_version);
-            for (const sp of specialPresets) {
-                for (const spEntry of Object.entries(sp)) {
-                    const preset = {}
-                    preset.name = spEntry[0];
-                    preset.value = spEntry[1];
-                    if (preset.value === lbwWeightData) {
-                        preset.selected = true;
-                    }
-                    presetBindDatas.push(preset);
-                }
-            }
-
-            let lbwLoraType = this.weightData.lbw_lora_type;
-            let lbwSdVersion = this.weightData.lbw_sd_version;
-            if (lbwSdVersion) {
-                if (Object.keys(this.getLbwPresets(lbwLoraType, lbwSdVersion)).length) {
-                    const strLbwWeightData = Array.isArray(lbwWeightData) ? lbwWeightData.join(",") : lbwWeightData;
-                    const lbwPresets = this.getLbwPresets(lbwLoraType, lbwSdVersion);
-                    for (const key of Object.keys(lbwPresets)) {
-                        const preset = {}
-                        preset.name = key;
-                        preset.value = lbwPresets[key];
-                        if (preset.value === strLbwWeightData) {
-                            preset.selected = true;
-                        }
-                        presetBindDatas.push(preset);
-                    }
-                }
-            }
-        }
-
-        setupLbwBlockBindData() {
-            const lbwBlockBindDatas = [];
-            this.bindData.lbwBlockBindDatas = lbwBlockBindDatas;
-
-            const lbwWeightSetting = this.getLbwWeightSetting(this.weightData.lbw_lora_type, this.weightData.lbw_sd_version);
-            for (const blockPoint of lbwWeightSetting.block_points) {
-                lbwBlockBindDatas.push({label: blockPoint});
             }
         }
 
@@ -847,6 +809,9 @@
             }
             Object.entries(this.weightElements).forEach(entry => {
                 const group = entry[0];
+                if (group === "lbw") {
+                    return;
+                }
                 const weights = entry[1];
                 weights.forEach((weight, i) => {
                     if (weight.check) {
@@ -870,17 +835,15 @@
                         changedEvent(group, weight.check);
                     });
                     this.attachEvent(weight.updown, "input", (e) => {
-                        const fVal = parseFloat(e.target.value) * 100;
+                        const fVal = Math.round(e.target.value * 100);
                         this.weightData[group][i] = fVal;
-                        weight.slider.value = Math.round(fVal);
-
                         if (fVal < weight.slider.min) {
                             weight.slider.min = fVal;
                         }
                         if (fVal > weight.slider.max) {
                             weight.slider.max = fVal;
                         }
-
+                        weight.slider.value = Math.round(fVal);
                         changedEvent(group, weight.check);
                     });
                 })
@@ -896,6 +859,11 @@
 
             this.attachEvent(mainDoc.getElementById("wh:lora_type"), "change", (e) => {
                 this.weightData.lbw_lora_type = e.target.value;
+
+                const xyzLabel = document.getElementById("wh:xyz_label");
+                const specialPreset = this.getLbwSpecialPreset(this.weightData.lbw_lora_type, this.weightData.lbw_sd_version);
+                xyzLabel.textContent = specialPreset.XYZ;
+
                 this.redrawLbw();
                 if (!this.usingExecCommand) {
                     const updatedText = this.makeUpdatedText();
@@ -907,6 +875,11 @@
 
             this.attachEvent(mainDoc.getElementsByClassName("wh:sdver"), "change", (e) => {
                 this.weightData.lbw_sd_version = e.target.value;
+
+                const xyzLabel = document.getElementById("wh:xyz_label");
+                const specialPreset = this.getLbwSpecialPreset(this.weightData.lbw_lora_type, this.weightData.lbw_sd_version);
+                xyzLabel.textContent = specialPreset.XYZ;
+
                 this.redrawLbw();
                 if (!this.usingExecCommand) {
                     const updatedText = this.makeUpdatedText();
@@ -924,35 +897,17 @@
 
             this.attachEvent(mainDoc.getElementsByClassName("wh:preset_select"), "change", (e) => {
                 const selectVal = e.target.value;
-                const specialPresets = this.getLbwSpecialPreset(this.weightData.lbw_lora_type, this.weightData.lbw_sd_version);
-                const isSpecial = specialPresets.some(s => Object.values(s)[0] === selectVal);
-                const lbwBlocks = this.mainBody.getElementsByClassName("wh:lbwblocks")[0];
-                const lockIcon = document.getElementById("wh:lock");
-                if (isSpecial) {
-                    this.weightData.special = selectVal;
-                } else if (isSpecial || !this.weightData.lbw_sd_version) {
-                    lbwBlocks.style.display = "none";
-                    lockIcon.style.visibility = "hidden";
-                } else {
-                    this.weightData.special = "";
-                    lbwBlocks.style.display = "flex";
-                    if (this.weightData.lbw_lora_type && this.weightData.lbw_sd_version) {
-                        lockIcon.style.visibility = "";
-                    }
+                if (!this.weightData.lbw_sd_version) {
+                    return;
+                }
 
+                if (selectVal !== "") {
+                    this.weightData.special = "";
+                    const xyz = document.getElementById("wh:xyz");
+                    xyz.checked = false;
+
+                    const values = selectVal.split(",").map(v => Math.round(v * 100));
                     const masks = this.getLbwWeightSetting(this.weightData.lbw_lora_type, this.weightData.lbw_sd_version).masks;
-                    let values;
-                    if (selectVal === "") {
-                        values = [];
-                        for (let idx = 0; idx < masks.length; idx++) {
-                            if (masks[idx] === 1) {
-                                const val = this.weightData.lbw[idx];
-                                values.push(val);
-                            }
-                        }
-                    } else {
-                        values = selectVal.split(",").map(v => Math.round(parseFloat(v) * 100));
-                    }
                     let refIdx = 0;
                     for (let idx = 0; idx < masks.length; idx++) {
                         let val = 0;
@@ -964,6 +919,29 @@
                         this.weightElements.lbw[idx].slider.value = val;
                         this.weightElements.lbw[idx].updown.value = val / 100;
                     }
+
+                    const lockIcon = document.getElementById("wh:lock");
+                    lockIcon.style.visibility = "";
+
+                    const weightDataHash = this.weightData.hashCode();
+                    const isLocked = this.currentLockSet.has(weightDataHash);
+                    this.updateLockedIcon(isLocked);
+
+                    if (!this.usingExecCommand) {
+                        const updatedText = this.makeUpdatedText();
+                        this.update(updatedText);
+                    }
+                }
+            });
+
+            this.attachEvent(mainDoc.getElementById("wh:xyz"), "change", (e) => {
+                const lockIcon = document.getElementById("wh:lock");
+                if (e.target.checked) {
+                    this.weightData.special = e.target.value;
+                    lockIcon.style.visibility = "hidden";
+                } else {
+                    this.weightData.special = "";
+                    lockIcon.style.visibility = this.weightData.lbw_sd_version ? "" : "hidden";
 
                     const weightDataHash = this.weightData.hashCode();
                     const isLocked = this.currentLockSet.has(weightDataHash);
@@ -977,18 +955,20 @@
             });
 
             const lbwChangedEvent = () => {
-                const lbwLoraType = this.weightData.lbw_lora_type;
-                const lbwSdVersion = this.weightData.lbw_sd_version;
-                if (lbwLoraType && lbwSdVersion) {
-                    this.weightData.special = "";
-                    const lbwValues = this.getLbwWeightData().join(",");
-                    const select = this.mainBody.getElementsByClassName("wh:preset_select")[0];
-                    if (lbwValues in this.lbwPresetsValueKeyMap[lbwLoraType][lbwSdVersion]) {
-                        select.value = lbwValues;
-                    } else {
-                        select.selectedIndex = 0;
-                    }
+                this.weightData.special = "";
+                const xyz = document.getElementById("wh:xyz");
+                xyz.checked = false;
+
+                const lbwValues = this.getLbwWeightData().join(",");
+                const select = this.mainBody.getElementsByClassName("wh:preset_select")[0];
+                if (lbwValues in this.lbwPresetsValueKeyMap[this.weightData.lbw_lora_type][this.weightData.lbw_sd_version]) {
+                    select.value = lbwValues;
+                } else {
+                    select.selectedIndex = 0;
                 }
+
+                const lockIcon = document.getElementById("wh:lock");
+                lockIcon.style.visibility = "";
 
                 const weightDataHash = this.weightData.hashCode();
                 const isLocked = this.currentLockSet.has(weightDataHash);
@@ -1008,10 +988,16 @@
                     lbwChangedEvent();
                 });
                 this.attachEvent(lbw.updown, "input", (e) => {
-                    const fVal = parseFloat(e.target.value);
+                    const fVal = Math.round(e.target.value * 100);
                     const idx = e.target.dataset.index;
-                    this.weightData["lbw"][idx] = fVal * 100;
-                    lbw.slider.value = Math.round(fVal * 100);
+                    this.weightData["lbw"][idx] = fVal;
+                    if (fVal < lbw.slider.min) {
+                        lbw.slider.min = fVal;
+                    }
+                    if (fVal > lbw.slider.max) {
+                        lbw.slider.max = fVal;
+                    }
+                    lbw.slider.value = fVal;
                     lbwChangedEvent();
                 });
             });
@@ -1201,7 +1187,28 @@
         redrawLbw() {
             const parser = new DOMParser();
 
-            this.setupLbwPresetBindData();
+            const presetBindDatas = [];
+            this.bindData.lbwPresetBindDatas = presetBindDatas;
+
+            const lbwSdVersion = this.weightData.lbw_sd_version;
+            if (lbwSdVersion) {
+                const lbwLoraType = this.weightData.lbw_lora_type;
+                if (Object.keys(this.getLbwPresets(lbwLoraType, lbwSdVersion)).length) {
+                    const lbwWeightData = this.getLbwWeightData();
+                    const strLbwWeightData = Array.isArray(lbwWeightData) ? lbwWeightData.join(",") : lbwWeightData;
+                    const lbwPresets = this.getLbwPresets(lbwLoraType, lbwSdVersion);
+                    for (const key of Object.keys(lbwPresets)) {
+                        const preset = {}
+                        preset.name = key;
+                        preset.value = lbwPresets[key];
+                        if (preset.value === strLbwWeightData) {
+                            preset.selected = true;
+                        }
+                        presetBindDatas.push(preset);
+                    }
+                }
+            }
+
             const presetSelect = this.mainBody.getElementsByClassName("wh:preset_select")[0];
             const presetHtml = WeightHelper.PRESETS_TEMPLATE({ presets: this.bindData.lbwPresetBindDatas });
             const previewDoc = parser.parseFromString(presetHtml, 'text/html');
@@ -1214,7 +1221,14 @@
             });
             presetSelect.appendChild(presetFragment);
 
-            this.setupLbwBlockBindData();
+            const lbwBlockBindDatas = [];
+            this.bindData.lbwBlockBindDatas = lbwBlockBindDatas;
+
+            const lbwWeightSetting = this.getLbwWeightSetting(this.weightData.lbw_lora_type, this.weightData.lbw_sd_version);
+            for (const blockPoint of lbwWeightSetting.block_points) {
+                lbwBlockBindDatas.push({label: blockPoint});
+            }
+
             const lbwblocks = this.mainBody.getElementsByClassName("wh:lbwblocks")[0];
             const lbwblocksHtml = WeightHelper.LBWBLOCKS_TEMPLATE({ lbwBlocks: this.bindData.lbwBlockBindDatas });
             const lbwblocksDoc = parser.parseFromString(lbwblocksHtml, 'text/html');
@@ -1230,7 +1244,6 @@
             for (let idx = 0; idx < WEIGHT_SETTINGS.lbw.labels.length; idx++) {
                 labelMap[WEIGHT_SETTINGS.lbw.labels[idx]] = idx;
             }
-            const lbwWeightSetting = this.getLbwWeightSetting(this.weightData.lbw_lora_type, this.weightData.lbw_sd_version);
             for (const blockPoint of lbwWeightSetting.block_points) {
                 const lbwblock = lbwblockFragment.getElementById(`wh:lbwblock_${blockPoint.toLowerCase()}`);
                 const points = blockPoint.split("-");
@@ -1310,15 +1323,20 @@
                     presetSelect.value = this.weightData.special;
                 } else {
                     const lbwValues = this.getLbwWeightData().join(",");
-                    if (lbwValues in this.lbwPresetsValueKeyMap[this.weightData.lbw_lora_type][this.weightData.lbw_sd_version]) {
-                        presetSelect.value = lbwValues;
-                    } else {
-                        presetSelect.selectedIndex = 0;
+                    const presetValues = this.lbwPresetsValueKeyMap[this.weightData.lbw_lora_type][this.weightData.lbw_sd_version];
+                    try {
+                        if (lbwValues in presetValues) {
+                            presetSelect.value = lbwValues;
+                        } else {
+                            presetSelect.selectedIndex = 0;
+                        }
+                    } catch (error) {
+                        console.error(error, presetValues, lbwValues);
                     }
                 }
             }
             const lbwBlocks = this.mainBody.getElementsByClassName("wh:lbwblocks")[0];
-            lbwBlocks.style.display = this.weightData.special ? "none" : "flex";
+            lbwBlocks.style.display = this.weightData.lbw_sd_version ? "flex" : "none";
 
             if (!this.usingExecCommand) {
                 const updatedText = this.makeUpdatedText();
@@ -1331,7 +1349,7 @@
         }
 
         getLbwWeightData() {
-            if (this.weightData.special) {
+            if (this.weightData.isSpecial()) {
                 return this.weightData.special;
             }
             const masks = this.getLbwWeightSetting(this.weightData.lbw_lora_type, this.weightData.lbw_sd_version).masks;
@@ -1727,7 +1745,7 @@
                     new Function(script).call(window);
 
                     Handlebars.registerHelper("lower", str => str.toLowerCase());
-                    Handlebars.registerHelper("visible", b => b ? "" : "visibility: visible;");
+                    Handlebars.registerHelper("visible", b => b ? "" : "visibility: hidden;");
                     Handlebars.registerHelper("display", b => b ? "" : "display: none;");
                     Handlebars.registerHelper("checked", b => b ? "checked" : "");
                     Handlebars.registerHelper("selected", b => b ? "selected" : "");

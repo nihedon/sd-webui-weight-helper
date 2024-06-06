@@ -151,8 +151,10 @@
 #weight-helper button:active {
     box-shadow: var(--button-shadow-active);
 }
-#weight-helper .border {
+#weight-helper .p {
     padding: 3px;
+}
+#weight-helper .border {
     border: 1px solid var(--block-border-color) !important;
     border-radius: 8px !important;
 }
