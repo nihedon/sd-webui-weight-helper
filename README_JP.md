@@ -26,7 +26,7 @@ https://github.com/nihedon/sd-webui-weight-helper.git
    - `<lyco:lyco_name:1.0>`
 2. LoRA（またはLyCORIS）に合わせて"LoRA"か"LyCORIS"を選択し、SDXLバージョンの場合は"SDXL"を選択します。
 3. ウェイトスライダーを動かして各ウェイトブロックの倍率を調整します。
-4. UNet、Dyn、Start、Stopは非表示となっているため、設定した場合は"show extra options"ボタンを押下して表示できます。
+4. UNet、Dyn、Start、Stopは非表示となっているため、設定した場合は"show more options"ボタンを押下して表示できます。
 5. お気に入りのウェイト設定はコンテキストメニュー左上の"★"アイコンをクリックし保存します。
    重要：保存した場合はLocalStrageに保存されますが、保存していない履歴は画面更新時にすべて削除されます。
 

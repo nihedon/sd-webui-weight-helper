@@ -101,11 +101,12 @@
 #weight-helper .metadata > span > span:nth-child(1) {
     color: var(--block-label-text-color);
     background-color: var(--border-color-primary);
+    border-right: 1.5px solid var(--block-info-text-color);
     border-radius: 3px 0 0 3px;
-    padding: 0px 6px;
+    padding: 0px 6px 0px 5px;
 }
 #weight-helper .metadata > span > span:nth-child(2) {
-    margin-left: 6px;
+    margin-left: 4px;
 }
 #weight-helper .metadata > span > span:nth-child(2).loading {
     display: block;

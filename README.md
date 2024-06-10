@@ -26,7 +26,7 @@ https://github.com/nihedon/sd-webui-weight-helper.git
    - `<lyco:lyco_name:1.0>`
 2. Choose "LoRA" or "LyCORIS" according to the tag, and select "SDXL" if it's for the SDXL version.
 3. Move the weight slider to adjust the magnification of each weight block.
-4. UNet, Dyn, Start, and Stop will be hidden by default, but if configured, you can display them by pressing the "show extra options" button.
+4. UNet, Dyn, Start, and Stop will be hidden by default, but if configured, you can display them by pressing the "show more options" button.
 5. Save your favorite weight settings by clicking the "★" icon at the top left of the context menu.
    Important: Saved settings are stored in LocalStorage, but any unsaved history will be deleted upon refreshing the screen.
 

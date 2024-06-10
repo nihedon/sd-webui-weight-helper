@@ -162,25 +162,27 @@ class WeightHelperAPI:
 
         elif ss_network_module.find("lycoris.kohya") >= 0:
             algoName = ""
-            if algo == "locon" or algo == "lora":
-                algoName = "Locon"
-            if algo == "loha":
-                algoName = "LoHa"
-            if algo == "lokr":
-                algoName = "Lokr"
-            if algo == "ia3":
-                algoName = "IA3"
-            if algo == "dylora":
-                algoName = "DyLoRA"
-            if algo == "full":
-                algoName = "Full"
-            if algoName:
-                if dora_wd:
-                    algoName = f"(DoRA)({algoName})"
+            if dora_wd:
+                algoName = "(DoRA)"
+            elif algo == "lora":
+                algoName += "(LoCon)"
+            elif algo == "locon":
+                if unit:
+                    algoName += "(DyLoRA)"
                 else:
-                    algoName = f"({algoName})"
-                algoName = f"LyCORIS{algoName}"
-            return "LyCORIS"
+                    algoName += "(LoCon)"
+            elif algo == "loha":
+                algoName += "(LoHa)"
+            elif algo == "lokr":
+                algoName += "(Lokr)"
+            elif algo == "ia3":
+                algoName += "(IA3)"
+            elif algo == "full":
+                algoName += "(Full)"
+            elif algo == "glora":
+                algoName += "(GLoRA)"
+
+            return f"LyCORIS{algoName}"
 
         elif ss_network_module.find("networks.dylora") >= 0:
             if algo == "dylora" and unit:

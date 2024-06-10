@@ -1371,7 +1371,7 @@
                     return LBW_WEIGHT_SETTINGS[lbwLoraType][lbwSdVersion];
                 }
             }
-            return LBW_WEIGHT_SETTINGS["unknown"];
+            return LBW_WEIGHT_SETTINGS.unknown;
         }
 
         getLbwSpecialPreset(loraType, sdVersion) {
@@ -1380,7 +1380,7 @@
                     return SPECIAL_PRESETS[loraType][sdVersion];
                 }
             }
-            return SPECIAL_PRESETS["unknown"];
+            return SPECIAL_PRESETS.unknown;
         }
 
         updateLockedIcon(isLocked) {
