@@ -731,7 +731,7 @@
                 this.offsetX = e.clientX - this.mainBody.getBoundingClientRect().left;
                 this.offsetY = e.clientY - this.mainBody.getBoundingClientRect().top;
             });
-            this.attachEvent(this.mainBody, "mousemove", (e) => {
+            this.attachEvent(document.body, "mousemove", (e) => {
                 if (!this.isDragging) return;
 
                 const x = e.clientX - this.offsetX + window.scrollX;
