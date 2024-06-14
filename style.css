@@ -1,5 +1,6 @@
 #weight-helper {
     text-align: center;
+    max-width: 330px;
     transform-origin: left top;
     color: var(--body-text-color);
     background: var(--body-background-fill);
@@ -106,7 +107,8 @@
     padding: 0px 6px 0px 5px;
 }
 #weight-helper .metadata > span > span:nth-child(2) {
-    margin-left: 4px;
+    margin: 0 4px;
+    white-space: nowrap;
 }
 #weight-helper .metadata > span > span:nth-child(2).loading {
     display: block;
