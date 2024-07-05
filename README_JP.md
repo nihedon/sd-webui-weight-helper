@@ -1,6 +1,6 @@
 [English](README.md) | [日本語](README_JP.md)
 
-<img src="https://github.com/nihedon/sd-webui-weight-helper/assets/66118290/729fee90-90cc-4db3-9a9f-1655a57b9c8e" height="600px">
+<img src="https://github.com/nihedon/sd-webui-weight-helper/assets/66118290/08f8d818-ac5d-4125-b2aa-45c302f626f8" height="600px">
 
 # Weight Helper 拡張機能
 
@@ -34,6 +34,12 @@ https://github.com/nihedon/sd-webui-weight-helper.git
 
 - マウス操作でウェイト値を容易に設定できます。
 - Lora Block Weightのプリセット値の利用が可能です。
+- プレビュー画面に表示されるアイコンからLoRA情報の確認、トリガーワードの追加ができます。
+- LoRAに付属するreadmeファイルの情報をプレビュー画面に表示できます。（{loraname}.txt, {loraname}.description.txt）
+- LoRAのメタ情報からLoRAのSDバージョンが表示されます。（Civitaiのメタテキストが存在する場合、civitaiに登録したSDバージョンも表示します。）
+
+## 既知の問題
+- LoRAのメタ情報からアルゴリズムを割り出していますが不完全です。不具合報告や正しいアルゴリズムを提示していただけると助かります(_ _)
 
 ## 設定オプション
 

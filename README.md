@@ -1,6 +1,6 @@
 [English](README.md) | [日本語](README_JP.md)
 
-<img src="https://github.com/nihedon/sd-webui-weight-helper/assets/66118290/729fee90-90cc-4db3-9a9f-1655a57b9c8e" height="600px">
+<img src="https://github.com/nihedon/sd-webui-weight-helper/assets/66118290/08f8d818-ac5d-4125-b2aa-45c302f626f8" height="600px">
 
 # Weight Helper Extension
 
@@ -34,6 +34,12 @@ https://github.com/nihedon/sd-webui-weight-helper.git
 
 - Easy to set weight values with mouse operations.
 - Use of preset values from Lora Block Weight is possible.
+- You can check LoRA information and add trigger words from the icons displayed on the preview screen.
+- Information from the readme file attached to LoRA can be displayed on the preview screen. ({loraname}.txt, {loraname}.description.txt)
+- The SD version of LoRA is displayed based on the metadata of LoRA. (If there is metadata text from Civitai, the SD version registered with Civitai will also be displayed.)
+
+## Known Issues
+- The algorithm is deduced from the metadata of LoRA, but it is incomplete. Bug reports and suggestions for the correct algorithm would be appreciated.
 
 ## Configuration Options
 
