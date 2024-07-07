@@ -315,12 +315,70 @@
                         const tabId = e.target.closest("[id^='tab_'][class*='tabitem']").id.split("_")[1];
                         const selectionStart = tmpSelectionStart + match.index;
                         const selectionEnd = selectionStart + match.input.trim().length;
-                        const weightHelper = new WeightHelper(tabId, e.target, selectionStart, selectionEnd, loraType, name, multiplier);
-                        weightHelper.setup();
-                        weightHelper.show(e.pageY + 15, e.pageX);
+                        WeightHelper.loadTemplate().then(() => {
+                            const weightHelper = new WeightHelper(tabId, e.target, selectionStart, selectionEnd, loraType, name, multiplier);
+                            weightHelper.setup();
+                            weightHelper.show(e.pageY + 15, e.pageX);
+                        });
                     }
                 }
             });
+        }
+
+        static async loadTemplate() {
+            if (WeightHelper.MAIN_TEMPLATE != null) {
+                return;
+            }
+            async function loadHandlebars() {
+                if ("Handlebars" in window) {
+                    return Promise.resolve();
+                } else {
+                    try {
+                        const res = await fetch("https://cdn.jsdelivr.net/npm/handlebars@latest/dist/handlebars.js");
+                        const script = await res.text();
+                        new Function(script).call(window);
+
+                        Handlebars.registerHelper("lower", str => str.toLowerCase());
+                        Handlebars.registerHelper("visible", b => b ? "" : "visibility: hidden;");
+                        Handlebars.registerHelper("display", b => b ? "" : "display: none;");
+                        Handlebars.registerHelper("checked", b => b ? "checked" : "");
+                        Handlebars.registerHelper("selected", b => b ? "selected" : "");
+                        Handlebars.registerHelper("pos", array => {
+                            let str = "";
+                            str += array[0] == null ? "" : `top: ${array[0]}px;`;
+                            str += array[1] == null ? "" : `right: ${array[1]}px;`;
+                            str += array[2] == null ? "" : `bottom: ${array[2]}px;`;
+                            str += array[3] == null ? "" : `left: ${array[3]}px;`;
+                            return str;
+                        })
+                    } catch (error) {
+                        console.error("Failed to load Handlebars:", error);
+                    }
+                }
+            }
+
+            await loadHandlebars();
+            const response = await fetch("/whapi/v1/get_template", { method: "POST", body: null });
+            const hbs = await response.json();
+            function partialize(hbs, tag) {
+                const startTag = tag;
+                const start = hbs.indexOf(startTag);
+                const endTag = `${tag.substring(0, 1)}/${tag.substring(1)}`;
+                const end = hbs.indexOf(endTag, start + startTag.length);
+                const partial = hbs.substring(start + startTag.length, end);
+                const main = hbs.substring(0, start) + hbs.substring(end + endTag.length);
+                return {"partial": partial, "main": main}
+            }
+            let main, preview, preset, lbwBlock, lbw;
+            ({ partial: preview, main: main} = partialize(hbs, "<wh:preview>"));
+            ({ partial: preset, main: main} = partialize(main, "<wh:lbwpresets>"));
+            ({ partial: lbwBlock, main: main} = partialize(main, "<wh:lbwblocks>"));
+            ({ partial: lbw, main: lbwBlock} = partialize(lbwBlock, "<wh:lbws>"));
+            WeightHelper.MAIN_TEMPLATE = Handlebars.compile(main);
+            WeightHelper.PREVIEW_TEMPLATE = Handlebars.compile(preview);
+            WeightHelper.PRESETS_TEMPLATE = Handlebars.compile(preset);
+            WeightHelper.LBWBLOCKS_TEMPLATE = Handlebars.compile(lbwBlock);
+            WeightHelper.LBWS_TEMPLATE = Handlebars.compile(lbw);
         }
 
         constructor(tabId, textarea, selectionStart, selectionEnd, tagName, name, multiplier) {
@@ -1727,66 +1785,5 @@
                 WeightHelper.attach(textarea);
             });
         });
-        fetch('https://code.jquery.com/jquery-3.6.0.min.js')
-            .then(res => res.text())
-            .then(script => {
-                new Function(script)();
-                jq = jQuery.noConflict(true);
-            })
-            .catch(error => console.error('Error loading jQuery:', error));
-
-        async function loadHandlebars() {
-            if ("Handlebars" in window) {
-                return Promise.resolve();
-            } else {
-                try {
-                    const res = await fetch("https://cdn.jsdelivr.net/npm/handlebars@latest/dist/handlebars.js");
-                    const script = await res.text();
-                    new Function(script).call(window);
-
-                    Handlebars.registerHelper("lower", str => str.toLowerCase());
-                    Handlebars.registerHelper("visible", b => b ? "" : "visibility: hidden;");
-                    Handlebars.registerHelper("display", b => b ? "" : "display: none;");
-                    Handlebars.registerHelper("checked", b => b ? "checked" : "");
-                    Handlebars.registerHelper("selected", b => b ? "selected" : "");
-                    Handlebars.registerHelper("pos", array => {
-                        let str = "";
-                        str += array[0] == null ? "" : `top: ${array[0]}px;`;
-                        str += array[1] == null ? "" : `right: ${array[1]}px;`;
-                        str += array[2] == null ? "" : `bottom: ${array[2]}px;`;
-                        str += array[3] == null ? "" : `left: ${array[3]}px;`;
-                        return str;
-                    })
-                } catch (error) {
-                    console.error("Failed to load Handlebars:", error);
-                }
-            }
-        }
-        loadHandlebars().then(() => {
-            fetch("/whapi/v1/get_template", { method: "POST", body: null })
-                .then(res => res.json())
-                .then(hbs => {
-                    function partialize(hbs, tag) {
-                        const startTag = tag;
-                        const start = hbs.indexOf(startTag);
-                        const endTag = `${tag.substring(0, 1)}/${tag.substring(1)}`;
-                        const end = hbs.indexOf(endTag, start + startTag.length);
-                        const partial = hbs.substring(start + startTag.length, end);
-                        const main = hbs.substring(0, start) + hbs.substring(end + endTag.length);
-                        return {"partial": partial, "main": main}
-                    }
-                    let main, preview, preset, lbwBlock, lbw;
-                    ({ partial: preview, main: main} = partialize(hbs, "<wh:preview>"));
-                    ({ partial: preset, main: main} = partialize(main, "<wh:lbwpresets>"));
-                    ({ partial: lbwBlock, main: main} = partialize(main, "<wh:lbwblocks>"));
-                    ({ partial: lbw, main: lbwBlock} = partialize(lbwBlock, "<wh:lbws>"));
-                    WeightHelper.MAIN_TEMPLATE = Handlebars.compile(main);
-                    WeightHelper.PREVIEW_TEMPLATE = Handlebars.compile(preview);
-                    WeightHelper.PRESETS_TEMPLATE = Handlebars.compile(preset);
-                    WeightHelper.LBWBLOCKS_TEMPLATE = Handlebars.compile(lbwBlock);
-                    WeightHelper.LBWS_TEMPLATE = Handlebars.compile(lbw);
-                })
-            }
-        );
     });
 })();
