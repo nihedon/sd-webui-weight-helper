@@ -1758,8 +1758,12 @@
                 return;
             }
             const val = kv[1];
-            weight_helper_data[key].lock = val.lock.map(v => new WeightData(v));
-            weight_helper_data[key].history = val.history.map(v => new WeightData(v));
+            if (val.lock) {
+                weight_helper_data[key].lock = val.lock.map(v => new WeightData(v));
+            }
+            if (val.history) {
+                weight_helper_data[key].history = val.history.map(v => new WeightData(v));
+            }
         });
 
         onPageLoaded().then(() => {
