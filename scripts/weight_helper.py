@@ -1,5 +1,7 @@
 import ast
+import enum
 import os
+import sys
 from typing import Any, Optional
 import gradio as gr
 import importlib
@@ -12,9 +14,18 @@ prefix = "/whapi/v1"
 
 allowed_preview_extensions = ["png", "jpg", "jpeg", "webp", "gif"]
 
+class UI_TYPE(enum.Enum):
+    Unknown = 1
+    A1111 = 2
+    NEW_FORGE = 3
+
 class WeightHelperAPI:
 
     instance = None
+
+    network = None
+    network_lora = None
+    ui_type = None
 
     @staticmethod
     def init_endpoints(_: gr.Blocks, app: FastAPI):
@@ -27,9 +38,11 @@ class WeightHelperAPI:
             return instance.get_template()
         @app.post(prefix + "/get_metadata")
         async def _(key: str):
+            instance.__initialize()
             return instance.get_metadata(key)
         @app.post(prefix + "/get_preview_info")
         async def _(key: str):
+            instance.__initialize()
             return instance.get_preview_info(key)
 
     def __new__(cls, *args, **kwargs):
@@ -37,22 +50,30 @@ class WeightHelperAPI:
             cls.instance = super(WeightHelperAPI, cls).__new__(cls, *args, **kwargs)
         return cls.instance
 
-    def __init__(self):
-        self.network = importlib.import_module("extensions-builtin.Lora.network")
+    def __initialize(self):
+        if self.network_lora is not None or self.ui_type is not None:
+            return
 
-    def __get_networks_lora(self):
         try:
-            return importlib.import_module("extensions-builtin.Lora.ui_extra_networks_lora").networks
-        except Exception:
-            return None
+            self.network = importlib.import_module("extensions-builtin.Lora.network")
+            self.network_lora = importlib.import_module("extensions-builtin.Lora.ui_extra_networks_lora").networks
+            self.ui_type = UI_TYPE.A1111
+        except:
+            try:
+                self.network = importlib.import_module("packages_3rdparty.webui_lora_collection.network")
+                # TODO Perhaps 'packages_3rdparty.webui_lora_collection.network_lora' is correct, but 'new forge' doesn't support it yet.
+                self.network_lora = importlib.import_module("extensions-builtin.sd_forge_lora.networks")
+                self.ui_type = UI_TYPE.NEW_FORGE
+            except Exception as e:
+                self.ui_type = UI_TYPE.Unknown
+                print(e)
 
     def __get_lora_on_disk(self, key):
-        networks_lora = self.__get_networks_lora()
-        if networks_lora:
-            lora_on_disk = networks_lora.available_network_aliases.get(key)
+        if self.network_lora:
+            lora_on_disk = self.network_lora.available_network_aliases.get(key)
             if not lora_on_disk:
                 # sdnext
-                lora_on_disk = next((v for v in networks_lora.available_network_aliases.values() if v.alias == key), None)
+                lora_on_disk = next((v for v in self.network_lora.available_network_aliases.values() if v.alias == key), None)
             return lora_on_disk
         return None
 
@@ -137,13 +158,27 @@ class WeightHelperAPI:
         return ret
 
     def __get_sd_version(self, lora) -> Optional[str]:
-        sd_version: Optional[str] = lora.sd_version.name
-        if sd_version:
-            if sd_version == self.network.SdVersion.SD1.name or sd_version == self.network.SdVersion.SD2.name:
-                return "SD"
-            elif sd_version == self.network.SdVersion.SDXL.name:
-                return "SDXL"
-            return sd_version
+        if self.ui_type == UI_TYPE.A1111:
+            sd_version: Optional[str] = lora.sd_version.name
+            if sd_version and self.network:
+                if sd_version == self.network.SdVersion.SD1.name or sd_version == self.network.SdVersion.SD2.name:
+                    return "SD"
+                elif sd_version == self.network.SdVersion.SDXL.name:
+                    return "SDXL"
+                return sd_version
+        elif self.ui_type == UI_TYPE.NEW_FORGE:
+            base_model_version: Optional[str] = lora.metadata.get("ss_base_model_version")
+            if base_model_version:
+                base_model_version = base_model_version.lower()
+                if "sd_" in base_model_version:
+                    return "SD"
+                if "sd3" in base_model_version:
+                    return "SD"
+                elif "sdxl" in base_model_version:
+                    return "SDXL"
+                elif "flux" in base_model_version:
+                    return "FLUX"
+                return None
         return None
 
     def __get_algorithm(self, metadata, ss_network_args) -> Optional[str]:
