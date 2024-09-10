@@ -356,6 +356,18 @@ def on_ui_settings():
             "Advanced option - SDXL LyCORIS or LoRA-C3Lier block points"
         ).info(
             "default: BASE, IN00-IN03, IN04-IN08, M00, OUT00-OUT03, OUT04-OUT08"
+        ),
+        "weight_helper_lbw_lora_flux_block_points": shared.OptionInfo(
+            "FL00-FL03, FL04-FL07, FL08-FL10, FL11-FL14, FL15-FL18",
+            "Advanced option - FLUX LoRA-LierLa block points"
+        ).info(
+            "default: FL00-FL03, FL04-FL07, FL08-FL10, FL11-FL14, FL15-FL18"
+        ),
+        "weight_helper_lbw_lycoris_flux_block_points": shared.OptionInfo(
+            "FL00-FL03, FL04-FL07, FL08-FL10, FL11-FL14, FL15-FL18",
+            "Advanced option - FLUX LyCORIS or LoRA-C3Lier block points"
+        ).info(
+            "default: FL00-FL03, FL04-FL07, FL08-FL10, FL11-FL14, FL15-FL18"
         )
     }))
 

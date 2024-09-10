@@ -18,11 +18,13 @@
     const SPECIAL_PRESETS = {
         lora: {
             SD: { XYZ: "XYZ(17)" },
-            SDXL: { XYZ: "XYZ(12)" }
+            SDXL: { XYZ: "XYZ(12)" },
+            FLUX: { XYZ: "XYZ(19)" }
         },
         lycoris: {
             SD: { XYZ: "XYZ(26)" },
-            SDXL: { XYZ: "XYZ(20)" }
+            SDXL: { XYZ: "XYZ(20)" },
+            FLUX: { XYZ: "XYZ(19)" }
         },
         unknown: { XYZ: "XYZ(26)" }
     };
@@ -32,7 +34,7 @@
         "LyCORIS,etc": "lycoris"
     };
 
-    const LBW_WEIGHT_SD_VERSIONS = ["SD", "SDXL"];
+    const LBW_WEIGHT_SD_VERSIONS = ["SD", "SDXL", "FLUX"];
 
     const LBW_WEIGHT_SETTINGS = {
         lora: {
@@ -43,6 +45,10 @@
             SDXL: {
                 masks: [1,0,0,0,0,1,1,0,1,1,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0],
                 block_points: ["BASE", "IN04-IN08", "M00", "OUT00-OUT05"]
+            },
+            FLUX: {
+                masks: [0,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0],
+                block_points: ["FL00-FL03", "FL04-FL07", "FL08-FL10", "FL11-FL14", "FL15-FL18"]
             }
         },
         lycoris: {
@@ -53,6 +59,10 @@
             SDXL: {
                 masks: [1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0],
                 block_points: ["BASE", "IN00-IN03", "IN04-IN08", "M00", "OUT00-OUT03", "OUT04-OUT08"]
+            },
+            FLUX: {
+                masks: [0,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0],
+                block_points: ["FL00-FL03", "FL04-FL07", "FL08-FL10", "FL11-FL14", "FL15-FL18"]
             }
         },
         unknown: {
@@ -84,6 +94,10 @@
         },
         lbw: {
             labels: ["BASE", "IN00", "IN01", "IN02", "IN03", "IN04", "IN05", "IN06", "IN07", "IN08", "IN09", "IN10", "IN11", "M00", "OUT00", "OUT01", "OUT02", "OUT03", "OUT04", "OUT05", "OUT06", "OUT07", "OUT08", "OUT09", "OUT10", "OUT11"],
+            min: undefined, max: undefined, default: 100, step: undefined
+        },
+        lbwf: {
+            labels: ["NONE", "FL00", "FL01", "FL02", "FL03", "FL04", "FL05", "FL06", "FL07", "FL08", "NONE", "NONE", "NONE", "FL09", "FL10", "FL11", "FL12", "FL13", "FL14", "FL15", "FL16", "FL17", "FL18", "NONE", "NONE", "NONE"],
             min: undefined, max: undefined, default: 100, step: undefined
         }
     };
@@ -1095,7 +1109,13 @@
             }
             if (Object.keys(this.metadata).length > 0) {
                 if (this.metadata.sd_version && !this.weightData.lbw_sd_version) {
-                    this.weightData.lbw_sd_version = this.metadata.sd_version === "SDXL" ? "SDXL" : "SD";
+                    if (this.metadata.sd_version === "FLUX") {
+                        this.weightData.lbw_sd_version = "FLUX";
+                    } else if (this.metadata.sd_version === "SDXL") {
+                        this.weightData.lbw_sd_version = "SDXL";
+                    } else {
+                        this.weightData.lbw_sd_version = "SD";
+                    }
                     if (this.currentHistory.length == 1) {
                         this.currentHistory[0].lbw_sd_version = this.weightData.lbw_sd_version;
                     }
@@ -1299,8 +1319,9 @@
             });
 
             const labelMap = {};
-            for (let idx = 0; idx < WEIGHT_SETTINGS.lbw.labels.length; idx++) {
-                labelMap[WEIGHT_SETTINGS.lbw.labels[idx]] = idx;
+            const labelKey = lbwSdVersion === "FLUX" ? "lbwf" : "lbw";
+            for (let idx = 0; idx < WEIGHT_SETTINGS[labelKey].labels.length; idx++) {
+                labelMap[WEIGHT_SETTINGS[labelKey].labels[idx]] = idx;
             }
             for (const blockPoint of lbwWeightSetting.block_points) {
                 const lbwblock = lbwblockFragment.getElementById(`wh:lbwblock_${blockPoint.toLowerCase()}`);
@@ -1312,7 +1333,10 @@
                 }
                 for (let idx = pointStart; idx <= pointEnd; idx++) {
                     if (lbwWeightSetting.masks[idx] == 1) {
-                        lbwblock.appendChild(this.lbwDOMs[idx]);
+                        const lbwDOM = this.lbwDOMs[idx];
+                        lbwblock.appendChild(lbwDOM);
+                        const label = lbwDOM.children[0];
+                        label.textContent = WEIGHT_SETTINGS[labelKey].labels[idx];
                     }
                 }
             }
@@ -1714,7 +1738,14 @@
                     delete dataTemp[key]
                     const sdType = oldDataType[key];
 
-                    let lbwSdVersion = sdType == "sdxl" ? "SDXL" : "SD";
+                    let lbwSdVersion;
+                    if (sdType === "flux") {
+                        lbwSdVersion = "FLUX";
+                    } else if (sdType === "sdxl") {
+                        lbwSdVersion = "SDXL";
+                    } else {
+                        lbwSdVersion = "SD";
+                    }
                     datas.forEach(data => {
                         delete data.VERSION;
                         delete data.DATE;
