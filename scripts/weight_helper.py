@@ -55,18 +55,21 @@ class WeightHelperAPI:
             return
 
         try:
-            self.network = importlib.import_module("extensions-builtin.Lora.network")
-            self.network_lora = importlib.import_module("extensions-builtin.Lora.ui_extra_networks_lora").networks
-            self.ui_type = UI_TYPE.A1111
+            from modules_forge import forge_version
+            self.ui_type = UI_TYPE.NEW_FORGE
         except:
-            try:
-                self.network = importlib.import_module("packages_3rdparty.webui_lora_collection.network")
-                # TODO Perhaps 'packages_3rdparty.webui_lora_collection.network_lora' is correct, but 'new forge' doesn't support it yet.
-                self.network_lora = importlib.import_module("extensions-builtin.sd_forge_lora.networks")
-                self.ui_type = UI_TYPE.NEW_FORGE
-            except Exception as e:
-                self.ui_type = UI_TYPE.Unknown
-                print(e)
+            self.ui_type = UI_TYPE.A1111
+
+        try:
+            if self.ui_type == UI_TYPE.NEW_FORGE:
+                self.network = importlib.import_module("extensions-builtin.sd_forge_lora.network")
+                self.network_lora = importlib.import_module("extensions-builtin.sd_forge_lora.ui_extra_networks_lora").networks
+            else:
+                self.network = importlib.import_module("extensions-builtin.Lora.network")
+                self.network_lora = importlib.import_module("extensions-builtin.Lora.ui_extra_networks_lora").networks
+        except Exception as e:
+            self.ui_type = UI_TYPE.Unknown
+            print(e)
 
     def __get_lora_on_disk(self, key):
         if self.network_lora:
