@@ -1,5 +1,7 @@
 'use strict';
 
+let whIsActive = true;
+
 (function() {
     const VERSION = "1.2.0"
 
@@ -1583,6 +1585,9 @@
         }
 
         show(top, left) {
+            if (!whIsActive) {
+                return;
+            }
             this.mainBody.style.top = top + 'px';
             this.mainBody.style.left = left + 'px';
             document.body.appendChild(this.mainBody);
@@ -1610,6 +1615,9 @@
         }
 
         close = (e) => {
+            if (!whIsActive) {
+                return;
+            }
             if (!this.mainBody) return;
             if (e) {
                 if (this.mainBody.contains(e.target)) return;
@@ -1636,6 +1644,9 @@
         };
 
         cancel = (e) => {
+            if (!whIsActive) {
+                return;
+            }
             if (e.key === 'Escape') {
                 if (!this.usingExecCommand) {
                     this.update(this.lastText);
@@ -1779,6 +1790,9 @@
             const genButtons = gradioApp().querySelectorAll("button:is([id*='_generate'])");
             genButtons.forEach((genBtn) => {
                 genBtn.addEventListener('click', () => {
+                    if (!whIsActive) {
+                        return;
+                    }
                     if (last_instance) {
                         last_instance.close();
                     }
