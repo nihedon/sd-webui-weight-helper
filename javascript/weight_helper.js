@@ -358,8 +358,10 @@
             }
 
             await loadHandlebars();
-            const response = await fetch("/whapi/v1/get_template", { method: "POST", body: null });
-            const hbs = await response.json();
+            const scriptPath = document.querySelector("script[src*='\\weight_helper.js']").getAttribute("src");
+            const extensionPath = scriptPath.split("\\").slice(0, -2).join('\\');
+            const response = await fetch(`${extensionPath}/html/template.hbs`);
+            const hbs = await response.text();
             function partialize(hbs, tag) {
                 const startTag = tag;
                 const start = hbs.indexOf(startTag);
