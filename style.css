@@ -19,7 +19,19 @@
     justify-content: space-between;
     align-items: center;
     padding: 0px 3px;
-    cursor: move;
+    cursor: grab !important;
+}
+#weight-helper > header:active {
+    cursor: grabbing !important;
+}
+#weight-helper.waiting {
+    filter: brightness(0.8);
+    cursor: wait;
+}
+#weight-helper.waiting *:not(header),
+#weight-helper.waiting *:not(header) *,
+#weight-helper.waiting header * {
+    pointer-events: none;
 }
 #weight-helper > header > span {
     display: flex;
@@ -294,7 +306,6 @@
     vertical-align: middle;
 }
 #weight-helper .preview-pane .description {
-    visibility: hidden;
     color: white;
     font-size: 0.9rem;
     background-color: rgb(0 0 0 / 70%);
@@ -313,7 +324,6 @@
     scrollbar-width: none;
 }
 #weight-helper .preview-pane .description-close-btn {
-    visibility: hidden;
     position: absolute;
     bottom: 0;
     width: 100%;
