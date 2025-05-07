@@ -17,6 +17,8 @@ body:
         - label: Windows
         - label: macOS
         - label: Other (e.g., virtual environment)
+    validations:
+      required: true
 
   - type: input
     id: browser
@@ -24,15 +26,21 @@ body:
       label: Browser
       description: Please specify the browser you are using (e.g., Chrome, Firefox).
     validations:
-      required: false
+      required: true
 
-  - type: input
+  - type: checkboxes
     id: webui
     attributes:
       label: WebUI
-      description: Name of the WebUI you are using (if applicable).
+      description: Please select the WebUI(s) you are using.
+      options:
+        - label: A1111
+        - label: Forge
+        - label: ReForge
+        - label: SD-Next
+        - label: Other
     validations:
-      required: false
+      required: true
 
   - type: textarea
     id: console_log
