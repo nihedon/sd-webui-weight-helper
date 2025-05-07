@@ -1,0 +1,59 @@
+name: Bug Report
+description: Report a problem or unexpected behavior in the application.
+title: "[Bug] Brief description of the issue"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please fill out the following form to help us reproduce and resolve the issue.
+
+  - type: checkboxes
+    id: environment
+    attributes:
+      label: Operating Environment
+      description: Please select the environment you are using.
+      options:
+        - label: Windows
+        - label: macOS
+        - label: Other (e.g., virtual environment)
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser
+      description: Please specify the browser you are using (e.g., Chrome, Firefox).
+    validations:
+      required: false
+
+  - type: input
+    id: webui
+    attributes:
+      label: WebUI
+      description: Name of the WebUI you are using (if applicable).
+    validations:
+      required: false
+
+  - type: textarea
+    id: console_log
+    attributes:
+      label: Console Log
+      description: Paste any relevant console logs here.
+    validations:
+      required: false
+
+  - type: textarea
+    id: browser_log
+    attributes:
+      label: Browser Log
+      description: Paste any relevant browser logs here.
+    validations:
+      required: false
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description of the Issue
+      description: Please describe the issue you encountered in detail.
+    validations:
+      required: true
