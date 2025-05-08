@@ -2,7 +2,7 @@
 import { h } from 'preact';
 
 import * as configManager from '@/shared/manager/config-manager';
-import { expandRange } from '@/shared/utils/common-utils';
+import { expandRange } from '@/shared/utils/helper-utils';
 import { disabled } from '@/shared/utils/helper-utils';
 
 import * as context from '@/components/contexts/weight-helper-context';
@@ -21,18 +21,22 @@ export const LbwSection = () => {
     const maskedBlockSet = new Set(configManager.getMaskedLbwBlocks(selectedModelType, selectedLoraBlockType));
 
     return (
-        <div className="f col g-2" key={`${selectedModelType}-${selectedLoraBlockType}-${state.usingBlocks}`} style={{ display: 'flex' }}>
-            {blockGroups.map((group) => (
-                <div className="border p f g-2 col" key={`${group}-${selectedModelType}-${selectedLoraBlockType}-${state.usingBlocks}`}>
-                    {expandRange(group).map(
-                        (blockLabel) =>
-                            maskedBlockSet.has(blockLabel) &&
-                            weightState.weights[blockLabel] && (
-                                <div class="f g-2" key={`${blockLabel}-${selectedModelType}-${selectedLoraBlockType}-${disabled(state, blockLabel)}`}>
-                                    <WeightController label={blockLabel} values={weightState.weights} />
-                                </div>
-                            ),
-                    )}
+        <div class="lbw-column">
+            {blockGroups.map((cols) => (
+                <div className="f col g-2" key={`${selectedModelType}-${selectedLoraBlockType}-${state.usingBlocks}`} style={{ display: 'flex' }}>
+                    {cols.map((group) => (
+                        <div className="border p f g-2 col" key={`${group}-${selectedModelType}-${selectedLoraBlockType}-${state.usingBlocks}`}>
+                            {expandRange(group).map(
+                                (blockLabel) =>
+                                    maskedBlockSet.has(blockLabel) &&
+                                    weightState.weights[blockLabel] && (
+                                        <div class="f g-2" key={`${blockLabel}-${selectedModelType}-${selectedLoraBlockType}-${disabled(state, blockLabel)}`}>
+                                            <WeightController label={blockLabel} values={weightState.weights} />
+                                        </div>
+                                    ),
+                            )}
+                        </div>
+                    ))}
                 </div>
             ))}
         </div>

@@ -44,3 +44,37 @@ export const disabled = (state: context.BasicState, blockLabel: string | undefin
     }
     return state.usingBlocks !== undefined && !state.usingBlocks.has(blockLabel);
 };
+
+/**
+ * Expands a range pattern (e.g., 'IN01-IN04') into an array of block labels.
+ * If the pattern doesn't contain a valid range format, returns the pattern as a single-element array.
+ * @param patterns - The range pattern string.
+ * @returns An array of expanded block labels.
+ */
+export function expandRange(patterns: string): string[] {
+    const result: string[] = [];
+    patterns
+        .split(',')
+        .map((b) => b.trim())
+        .forEach((pattern) => {
+            const match = pattern.match(/^([A-Z]+)(\d+)-\1(\d+)$/);
+            if (!match) {
+                result.push(pattern);
+                return;
+            }
+
+            const [, prefix, start, end] = match;
+            const startNum = parseInt(start);
+            const endNum = parseInt(end);
+
+            let i = startNum;
+            while (true) {
+                result.push(`${prefix}${i.toString().padStart(2, '0')}`);
+                if (i == endNum) {
+                    break;
+                }
+                i += startNum < endNum ? 1 : -1;
+            }
+        });
+    return result;
+}

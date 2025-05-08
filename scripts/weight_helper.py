@@ -72,13 +72,13 @@ def on_ui_settings():
         .info("default: BASE, IN00-IN03, IN04-IN08, M00, OUT00-OUT03, OUT04-OUT08"),
 
         "weight_helper_LBW_Flux_lora_block_points": shared.OptionInfo(
-            "FL00-FL03, FL04-FL07, FL08-FL10, FL11-FL14, FL15-FL18",
+            "CLIP, T5, IN, OUT, D00-D18, S00-S18, S19-S37",
             "Advanced option - Flux LoRA-LierLa block points")
-        .info("default: FL00-FL03, FL04-FL07, FL08-FL10, FL11-FL14, FL15-FL18"),
+        .info("default: CLIP, T5, IN, OUT, D00-D18, S00-S18, S19-S37"),
         "weight_helper_LBW_Flux_lycoris_block_points": shared.OptionInfo(
-            "FL00-FL03, FL04-FL07, FL08-FL10, FL11-FL14, FL15-FL18",
+            "CLIP, T5, IN, OUT, D00-D18, S00-S18, S19-S37",
             "Advanced option - Flux LyCORIS or LoRA-C3Lier block points")
-        .info("default: FL00-FL03, FL04-FL07, FL08-FL10, FL11-FL14, FL15-FL18"),
+        .info("default: CLIP, T5, IN, OUT, D00-D18, S00-S18, S19-S37"),
     }))
 
 

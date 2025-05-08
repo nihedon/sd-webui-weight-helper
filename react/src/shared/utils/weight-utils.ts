@@ -1,6 +1,6 @@
 import * as configManager from '@/shared/manager/config-manager';
 import { WeightControllerTypes } from '@/shared/types/lora-types';
-import { expandRange } from '@/shared/utils/common-utils';
+import { expandRange } from '@/shared/utils/helper-utils';
 
 import * as context from '@/components/contexts/weight-helper-context';
 
@@ -14,17 +14,19 @@ import * as context from '@/components/contexts/weight-helper-context';
  */
 export function mergeWeightsWithGroups(
     currentWeights: Record<string, context.WeightControlState>,
-    groups: string[],
+    groups: string[][],
 ): Record<string, context.WeightControlState> {
     const updatedWeights = { ...currentWeights };
 
     const allBlocks: string[] = [];
-    groups.forEach((group) => {
-        const expandedBlocks = expandRange(group);
-        expandedBlocks.forEach((block) => {
-            if (!allBlocks.includes(block)) {
-                allBlocks.push(block);
-            }
+    groups.forEach((cols) => {
+        cols.forEach((group) => {
+            const expandedBlocks = expandRange(group);
+            expandedBlocks.forEach((block) => {
+                if (!allBlocks.includes(block)) {
+                    allBlocks.push(block);
+                }
+            });
         });
     });
 

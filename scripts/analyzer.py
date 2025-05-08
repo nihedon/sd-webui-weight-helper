@@ -25,7 +25,7 @@ def get_model_type(lora) -> Optional[str]:
             elif "sdxl" in base_model_version:
                 return "SDXL"
             elif "flux" in base_model_version:
-                return "FLUX"
+                return "Flux"
             return None
     return None
 
@@ -117,15 +117,16 @@ def get_blocks(lora_on_disk, force):
         return sorted(blocks)
 
     def formatForFlux(key):
-        blockSet = set()
+        blocks = ["CLIP", "T5", "IN", "OUT"]
         for key in keys:
             k, v = key.split("_")
             v = int(v)
+            if k == "double":
+                k = "D"
             if k == "single":
-                if v > 18:
-                    v -= 19
-            blockSet.add(f'FL{v:02}')
-        return sorted(list(blockSet))
+                k = "S"
+            blocks.append(f'{k}{v:02}')
+        return sorted(blocks)
 
     keys = [k for k in baseKeys if k.find("lora_unet") == 0]
     if len(keys) > 0:

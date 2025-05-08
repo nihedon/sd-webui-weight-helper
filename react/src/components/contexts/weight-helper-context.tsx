@@ -15,7 +15,7 @@ export interface BasicState {
     metadataState: MetadataState | undefined;
     srcLoraParams: string;
     weightState: WeightState;
-    blockGroups: string[];
+    blockGroups: string[][];
     preset: string;
     lbwPresets: Record<string, string>;
     usingBlocks: Set<string> | undefined;
@@ -91,7 +91,7 @@ export type WeightHelperAction =
               modelType: string;
               selectedModelType: ModelTypes;
               usingBlocks: string[] | null | undefined;
-              blockGroups: string[];
+              blockGroups: string[][];
               weights: Record<string, WeightControlState>;
               lbwPresets: Record<string, string>;
           };
@@ -102,7 +102,7 @@ export type WeightHelperAction =
           payload: {
               selectedModelType: ModelTypes;
               selectedLoraBlockType: LoraBlockTypes;
-              blockGroups: string[];
+              blockGroups: string[][];
               lbwPresets: Record<string, string>;
               weights: Record<string, WeightControlState>;
           };

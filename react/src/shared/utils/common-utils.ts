@@ -2,32 +2,6 @@ import * as configManager from '@/shared/manager/config-manager';
 import { LoraBlockTypes, ModelTypes } from '@/shared/types/lora-types';
 
 /**
- * Expands a range pattern (e.g., 'IN01-IN04') into an array of block labels.
- * If the pattern doesn't contain a valid range format, returns the pattern as a single-element array.
- * @param pattern - The range pattern string.
- * @returns An array of expanded block labels.
- */
-export function expandRange(pattern: string): string[] {
-    const match = pattern.match(/^([A-Z]+)(\d+)-\1(\d+)$/);
-    if (!match) return [pattern];
-
-    const [, prefix, start, end] = match;
-    const startNum = parseInt(start);
-    const endNum = parseInt(end);
-
-    const result: string[] = [];
-    let i = startNum;
-    while (true) {
-        result.push(`${prefix}${i.toString().padStart(2, '0')}`);
-        if (i == endNum) {
-            break;
-        }
-        i += startNum < endNum ? 1 : -1;
-    }
-    return result;
-}
-
-/**
  * Returns the preset name that matches the given weights for the selected model and block type.
  * @param selectedModelType - The selected model type.
  * @param selectedLoraBlockType - The selected LoRA block type.

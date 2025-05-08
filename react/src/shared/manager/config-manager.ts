@@ -55,24 +55,24 @@ const WeightControllerConfig: Record<string, WeightControllerInterface> = {
 
 const lbwGroupConfig = {
     [ModelTypes.SD]: {
-        [LoraBlockTypes.lora]: ['BASE', 'IN01-IN04', 'IN05-IN08', 'M00', 'OUT03-OUT06', 'OUT07-OUT11'],
-        [LoraBlockTypes.lycoris]: ['BASE', 'IN00-IN05', 'IN06-IN11', 'M00', 'OUT00-OUT05', 'OUT06-OUT11'],
-        [LoraBlockTypes.Unknown]: [] as string[],
+        [LoraBlockTypes.lora]: [['BASE', 'IN01-IN04', 'IN05-IN08', 'M00', 'OUT03-OUT06', 'OUT07-OUT11']],
+        [LoraBlockTypes.lycoris]: [['BASE', 'IN00-IN05', 'IN06-IN11', 'M00', 'OUT00-OUT05', 'OUT06-OUT11']],
+        [LoraBlockTypes.Unknown]: [[]] as string[][],
     },
     [ModelTypes.SDXL]: {
-        [LoraBlockTypes.lora]: ['BASE', 'IN04-IN08', 'M00', 'OUT00-OUT05'],
-        [LoraBlockTypes.lycoris]: ['BASE', 'IN00-IN03', 'IN04-IN08', 'M00', 'OUT00-OUT03', 'OUT04-OUT08'],
-        [LoraBlockTypes.Unknown]: [] as string[],
+        [LoraBlockTypes.lora]: [['BASE', 'IN04-IN08', 'M00', 'OUT00-OUT05']],
+        [LoraBlockTypes.lycoris]: [['BASE', 'IN00-IN03', 'IN04-IN08', 'M00', 'OUT00-OUT03', 'OUT04-OUT08']],
+        [LoraBlockTypes.Unknown]: [[]] as string[][],
     },
     [ModelTypes.Flux]: {
-        [LoraBlockTypes.lora]: ['FL00-FL03', 'FL04-FL07', 'FL08-FL10', 'FL11-FL14', 'FL15-FL18'],
-        [LoraBlockTypes.lycoris]: ['FL00-FL03', 'FL04-FL07', 'FL08-FL10', 'FL11-FL14', 'FL15-FL18'],
-        [LoraBlockTypes.Unknown]: [] as string[],
+        [LoraBlockTypes.lora]: [['CLIP', 'T5', 'IN', 'OUT'], ['D00-D18'], ['S00-S18'], ['S19-S37']],
+        [LoraBlockTypes.lycoris]: [['CLIP', 'T5', 'IN', 'OUT'], ['D00-D18'], ['S00-S18'], ['S19-S37']],
+        [LoraBlockTypes.Unknown]: [[]] as string[][],
     },
     [ModelTypes.Unknown]: {
-        [LoraBlockTypes.lora]: [] as string[],
-        [LoraBlockTypes.lycoris]: [] as string[],
-        [LoraBlockTypes.Unknown]: [] as string[],
+        [LoraBlockTypes.lora]: [[]] as string[][],
+        [LoraBlockTypes.lycoris]: [[]] as string[][],
+        [LoraBlockTypes.Unknown]: [[]] as string[][],
     },
 };
 
@@ -81,9 +81,9 @@ const lbwGroupConfig = {
  * Updates configuration values with settings from window.opts.
  */
 export function initialize() {
-    const optBlockPattern = /((BASE|MID|M00|(IN|OUT|FL)[0-9]{2}(-(IN|OUT|FL)[0-9]{2})?) *(, *|$))+/;
+    const optBlockPattern = /((BASE|MID|M00|CLIP|T5|(IN|OUT|D|S)[0-9]{2}(-(IN|OUT|D|S)[0-9]{2})?) *(, *|$))+/;
     for (const modelType of Object.values(SELECTABLE_MODEL_TYPES)) {
-        if (modelType === ModelTypes.Unknown) continue;
+        if (modelType === ModelTypes.Unknown || modelType === ModelTypes.Flux) continue;
         for (const loraBlockType of Object.values(SELECTABLE_LORA_BLOCK_TYPES)) {
             if (loraBlockType === LoraBlockTypes.Unknown) continue;
             try {
@@ -93,7 +93,7 @@ export function initialize() {
                     const blockPoints = optBlockPoints.split(',').map((v) => {
                         return v.trim().replace(/\d+/g, (match) => (match.length === 1 ? `0${match}` : match));
                     });
-                    lbwGroupConfig[modelType][loraBlockType] = blockPoints;
+                    lbwGroupConfig[modelType][loraBlockType] = [blockPoints];
                 }
             } catch (e) {
                 console.warn(`${modelType}_${loraBlockType} block definition format is invalid.`, e);
@@ -158,7 +158,7 @@ export function getLbwMasks(selectedModelType: ModelTypes, selectedLoraBlockType
  * @param selectedLoraBlockType - The selected LoRA block type.
  * @returns An array of block group identifiers.
  */
-export function getLbwBlockGroups(selectedModelType: ModelTypes, selectedLoraBlockType: LoraBlockTypes): string[] {
+export function getLbwBlockGroups(selectedModelType: ModelTypes, selectedLoraBlockType: LoraBlockTypes): string[][] {
     return lbwGroupConfig[selectedModelType || ModelTypes.Unknown][selectedLoraBlockType || LoraBlockTypes.Unknown];
 }
 
