@@ -22,7 +22,6 @@ export type ModelTypes = (typeof ModelTypes)[keyof typeof ModelTypes];
 export const LoraDefineParams = {
     te: 'te',
     unet: 'unet',
-    dyn: 'dyn',
     start: 'start',
     stop: 'stop',
     step: 'step',
@@ -34,7 +33,6 @@ export type LoraDefineParams = (typeof LoraDefineParams)[keyof typeof LoraDefine
 export const WeightControllerTypes = {
     TENC: 'TEnc',
     UNET: 'UNet',
-    DYN: 'Dyn',
     START: 'Start',
     STOP: 'Stop',
     LBW: 'LBW',

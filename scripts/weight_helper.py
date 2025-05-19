@@ -37,10 +37,6 @@ def on_ui_settings():
         "weight_helper_UNet_max": shared.OptionInfo(1, "UNet Max Value", gr.Number),
         "weight_helper_UNet_step": shared.OptionInfo(0.05, "UNet Step", gr.Number),
 
-        "weight_helper_Dyn_min": shared.OptionInfo(0, "Dyn Min Value", gr.Number),
-        "weight_helper_Dyn_max": shared.OptionInfo(128, "Dyn Max Value", gr.Number),
-        "weight_helper_Dyn_step": shared.OptionInfo(8, "Dyn Step", gr.Number),
-
         "weight_helper_LBW_min": shared.OptionInfo(0, "LBW (LoRA Block Weight) Min Value", gr.Number),
         "weight_helper_LBW_max": shared.OptionInfo(1, "LBW (LoRA Block Weight) Max Value", gr.Number),
         "weight_helper_LBW_step": shared.OptionInfo(0.05, "LBW (LoRA Block Weight) Step", gr.Number),

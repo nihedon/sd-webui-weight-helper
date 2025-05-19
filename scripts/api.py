@@ -40,7 +40,7 @@ def get_metadata(key, force) -> dict[str, Optional[str]]:
 def get_preview_info(key):
     ret: dict[str, Optional[bool | str | list[str]]] = {
         "modelId": None,
-        "triggerWords": None,
+        "triggerWords": [],
         "negativeTriggerWords": [],
         "modelName": None,
         "thumbUrl": None,

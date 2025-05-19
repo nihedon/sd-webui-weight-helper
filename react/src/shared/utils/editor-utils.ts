@@ -118,7 +118,7 @@ export function getOutputStrings(
     let updatedText = String(weightState.weights[WeightControllerTypes.TENC].value);
     let refIdx = 0;
     let idx = 0;
-    for (const keyType of [WeightControllerTypes.UNET, WeightControllerTypes.DYN]) {
+    for (const keyType of [WeightControllerTypes.UNET]) {
         const weight = weightState.weights[keyType];
         const defVal = configManager.getWeightControllerConfig(keyType as WeightControllerTypes).default;
         const val = +weight.value;

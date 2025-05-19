@@ -95,7 +95,7 @@ export function createWeightHelperState(namespace: string, loraName: string, lor
     const outputLoraParams = getOutputStrings(loraName, weightState).loraParams;
 
     let isMoreButtonVisible = false;
-    for (const keyType of [WeightControllerTypes.UNET, WeightControllerTypes.DYN, WeightControllerTypes.START, WeightControllerTypes.STOP]) {
+    for (const keyType of [WeightControllerTypes.UNET, WeightControllerTypes.START, WeightControllerTypes.STOP]) {
         const weight = weightState.weights[keyType];
         const defVal = configManager.getWeightControllerConfig(keyType as WeightControllerTypes).default;
         const val = +weight.value;
@@ -197,7 +197,7 @@ export function createLoraParamsState(
             key = keyValue[0].toLowerCase();
             value = keyValue[1];
         } else {
-            key = [LoraDefineParams.te, LoraDefineParams.unet, LoraDefineParams.dyn][i];
+            key = [LoraDefineParams.te, LoraDefineParams.unet][i];
             value = loraParamss[i];
         }
         loraParamsMap[key] = value;
@@ -222,7 +222,6 @@ export function createLoraParamsState(
 
     let te = configManager.getWeightControllerConfig(WeightControllerTypes.TENC).default;
     let unet: number | undefined = undefined;
-    let dyn: number | undefined = undefined;
 
     let vStart = configManager.getWeightControllerConfig(WeightControllerTypes.START).default;
     let vStop = configManager.getWeightControllerConfig(WeightControllerTypes.STOP).default;
@@ -277,9 +276,6 @@ export function createLoraParamsState(
             case LoraDefineParams.unet:
                 unet = +value;
                 break;
-            case LoraDefineParams.dyn:
-                dyn = +value;
-                break;
             case LoraDefineParams.start:
                 vStart = Math.round(+value);
                 break;
@@ -293,12 +289,6 @@ export function createLoraParamsState(
     if (unet === undefined) {
         unet = configManager.getWeightControllerConfig(WeightControllerTypes.UNET).default;
         useUnet = false;
-    }
-
-    let useDyn = true;
-    if (dyn === undefined) {
-        dyn = configManager.getWeightControllerConfig(WeightControllerTypes.DYN).default;
-        useDyn = false;
     }
 
     const lbws: Record<string, context.WeightControlState> = {};
@@ -336,14 +326,6 @@ export function createLoraParamsState(
                 sliderMax: Math.max(unet, configManager.getWeightControllerConfig(WeightControllerTypes.UNET).max),
                 initCheckState: useUnet,
                 checkState: useUnet,
-            },
-            [WeightControllerTypes.DYN]: {
-                initValue: dyn,
-                value: dyn,
-                sliderMin: Math.min(dyn, configManager.getWeightControllerConfig(WeightControllerTypes.DYN).min),
-                sliderMax: Math.max(dyn, configManager.getWeightControllerConfig(WeightControllerTypes.DYN).max),
-                initCheckState: useDyn,
-                checkState: useDyn,
             },
             [WeightControllerTypes.START]: {
                 initValue: vStart,

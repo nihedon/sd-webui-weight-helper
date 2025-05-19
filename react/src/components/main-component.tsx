@@ -122,7 +122,7 @@ export const UITemplateContent = () => {
                     <WeightController label={WeightControllerTypes.TENC} values={weightState.weights} />
                 </section>
             )}
-            {[WeightControllerTypes.UNET, WeightControllerTypes.DYN, WeightControllerTypes.START, WeightControllerTypes.STOP].map(
+            {[WeightControllerTypes.UNET, WeightControllerTypes.START, WeightControllerTypes.STOP].map(
                 (weightType) =>
                     weightState.weights[weightType] && (
                         <section

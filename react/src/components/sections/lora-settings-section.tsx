@@ -145,8 +145,8 @@ export const LoraSettingsSection = () => {
                             disabled={disabled(state)}
                             onChange={handleToggleXyzMode}
                         />
-                        <label className="radio-label" for="wh:xyz">
-                            XYZ
+                        <label className="radio-label" htmlFor="wh:xyz">
+                            {configManager.getXyzLabel(state.weightState.selectedModelType, state.weightState.selectedLoraBlockType)}
                         </label>
                     </div>
                 </div>

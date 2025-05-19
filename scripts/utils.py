@@ -16,11 +16,22 @@ def get_lora_on_disk(key):
     return None
 
 
+def imread_unicode(path):
+    try:
+        with open(path, 'rb') as f:
+            data = np.frombuffer(f.read(), np.uint8)
+        img = cv2.imdecode(data, cv2.IMREAD_UNCHANGED)
+        return img
+    except Exception as e:
+        print(f"imread_unicode error: {e}")
+        return None
+
+
 def resize_to_base64(input_path, target_height):
     output_format = '.webp'
     quality = 85
 
-    img = cv2.imread(input_path)
+    img = imread_unicode(input_path)
 
     h, w = img.shape[:2]
     if h < target_height:

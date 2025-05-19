@@ -36,7 +36,6 @@ export const disabled = (state: context.BasicState, blockLabel: string | undefin
     switch (blockLabel) {
         case WeightControllerTypes.TENC:
         case WeightControllerTypes.UNET:
-        case WeightControllerTypes.DYN:
         case WeightControllerTypes.START:
         case WeightControllerTypes.STOP:
         case undefined:

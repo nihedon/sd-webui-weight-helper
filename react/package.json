@@ -1,6 +1,6 @@
 {
   "name": "sd-webui-weight-helper",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "description": "",
   "scripts": {
     "type-check": "tsc --noEmit",

@@ -15,10 +15,6 @@ declare global {
             weight_helper_UNet_max: number;
             weight_helper_UNet_step: number;
 
-            weight_helper_Dyn_min: number;
-            weight_helper_Dyn_max: number;
-            weight_helper_Dyn_step: number;
-
             weight_helper_LBW_min: number;
             weight_helper_LBW_max: number;
             weight_helper_LBW_step: number;

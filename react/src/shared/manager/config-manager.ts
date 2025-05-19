@@ -27,12 +27,6 @@ const WeightControllerConfig: Record<string, WeightControllerInterface> = {
         default: 0,
         step: 0.5,
     },
-    [WeightControllerTypes.DYN]: {
-        min: 0,
-        max: 0,
-        default: 0,
-        step: 0.5,
-    },
     [WeightControllerTypes.START]: {
         min: 0,
         max: 0,
@@ -101,7 +95,7 @@ export function initialize() {
         }
     }
 
-    for (const k of [WeightControllerTypes.TENC, WeightControllerTypes.UNET, WeightControllerTypes.DYN, WeightControllerTypes.LBW]) {
+    for (const k of [WeightControllerTypes.TENC, WeightControllerTypes.UNET, WeightControllerTypes.LBW]) {
         WeightControllerConfig[k].min = +window.opts[`weight_helper_${k}_min`];
         WeightControllerConfig[k].max = +window.opts[`weight_helper_${k}_max`];
         WeightControllerConfig[k].step = +window.opts[`weight_helper_${k}_step`];
