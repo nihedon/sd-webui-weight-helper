@@ -33,11 +33,16 @@ export const UITemplateContent = () => {
     const { state, dispatch } = context.useWeightHelper();
     const { uiState, weightState, lock, previewState } = state;
 
+    const stateRef = useRef(state);
+    useEffect(() => {
+        stateRef.current = state;
+    }, [state]);
+
     useEffect(() => {
         const handleClickGenButton = () => {
-            if (state.uiState.isVisible) {
+            if (stateRef.current.uiState.isVisible) {
                 closeWeightHelperContext(dispatch);
-                syncEditorWithState(state);
+                syncEditorWithState(stateRef.current);
             }
         };
         const genButtons = gradioApp().querySelectorAll("button:is([id*='_generate'])");
@@ -46,10 +51,10 @@ export const UITemplateContent = () => {
         });
 
         const handleRightClickTextarea = (e: MouseEvent) => {
-            if (state.uiState.isVisible) {
+            if (stateRef.current.uiState.isVisible) {
                 e.preventDefault();
                 closeWeightHelperContext(dispatch);
-                syncEditorWithState(state);
+                syncEditorWithState(stateRef.current);
                 return;
             }
             const loraDefine = getLoraDefineFromEditor(e);
@@ -64,7 +69,7 @@ export const UITemplateContent = () => {
         });
 
         const handleClickAnyware = (e: MouseEvent) => {
-            if (state.uiState.isVisible) {
+            if (stateRef.current.uiState.isVisible) {
                 const contextMenuElement = document.getElementById('weight-helper');
                 if (!contextMenuElement) return;
                 const tabId = currentState.getTabId();
@@ -80,14 +85,14 @@ export const UITemplateContent = () => {
                     }
                 }
                 closeWeightHelperContext(dispatch);
-                syncEditorWithState(state);
+                syncEditorWithState(stateRef.current);
             }
         };
         document.addEventListener('click', handleClickAnyware);
 
         const handleKeyupAnyware = (e: KeyboardEvent) => {
             if ((e as KeyboardEvent).key === 'Escape') {
-                cancelWeightHelperContext(state, dispatch);
+                cancelWeightHelperContext(stateRef.current, dispatch);
             }
         };
         document.addEventListener('keyup', handleKeyupAnyware);
@@ -102,7 +107,7 @@ export const UITemplateContent = () => {
             document.removeEventListener('click', handleClickAnyware);
             document.removeEventListener('keyup', handleKeyupAnyware);
         };
-    }, [state]);
+    }, []);
 
     const weightHelperRef = useRef<HTMLDivElement>(null);
 

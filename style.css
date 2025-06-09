@@ -229,6 +229,7 @@
 }
 #weight-helper .lbw-column {
     display: flex;
+    align-items: flex-start;
 }
 #weight-helper .preview-pane {
     position: absolute;

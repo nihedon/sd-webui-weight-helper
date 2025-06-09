@@ -319,6 +319,7 @@ const weightHelperReducer = (state: BasicState, action: WeightHelperAction): Bas
             historyIndex: action.payload,
         };
     } else if (action.type === 'SET_WEIGHT') {
+        state.weightState.xyzMode = false;
         const weights = {
             ...state.weightState.weights,
             [action.payload.block]: {
@@ -332,6 +333,7 @@ const weightHelperReducer = (state: BasicState, action: WeightHelperAction): Bas
         const weightState = {
             ...state.weightState,
             weights,
+            xyzMode: false,
         };
 
         const outputStrings = getOutputStrings(state.loraName, weightState);
