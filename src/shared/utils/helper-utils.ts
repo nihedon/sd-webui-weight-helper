@@ -1,6 +1,5 @@
+import * as globalState from '@/shared/state/global-weight-helper-state';
 import { WeightControllerTypes } from '@/shared/types/lora-types';
-
-import * as context from '@/components/contexts/weight-helper-context';
 
 /**
  * Converts a string to lowercase.
@@ -10,18 +9,18 @@ import * as context from '@/components/contexts/weight-helper-context';
 export const lower = (str: string) => str.toLowerCase();
 
 /**
- * Returns a style object to control the display property.
- * @param visible - When true, returns an empty object; when false, sets display to 'none'.
- * @returns A CSS style object.
+ * Returns a CSS display string to control the display property.
+ * @param visible - When true, returns empty string; when false, returns 'display: none'.
+ * @returns A CSS display string.
  */
-export const getDisplayStyle = (visible: boolean) => (visible ? {} : { display: 'none' });
+export const getDisplayStyle = (visible: boolean) => (visible ? '' : 'display: none');
 
 /**
- * Returns a style object to control the visibility property.
- * @param visible - When true, returns an empty object; when false, sets visibility to 'hidden'.
- * @returns A CSS style object.
+ * Returns a CSS visibility string to control the visibility property.
+ * @param visible - When true, returns empty string; when false, returns 'visibility: hidden'.
+ * @returns A CSS visibility string.
  */
-export const getVisibilityStyle = (visible: boolean) => (visible ? {} : { visibility: 'hidden' });
+export const getVisibilityStyle = (visible: boolean) => (visible ? '' : 'visibility: hidden');
 
 /**
  * Determines if a weight controller should be disabled based on the current state and block label.
@@ -29,7 +28,7 @@ export const getVisibilityStyle = (visible: boolean) => (visible ? {} : { visibi
  * @param blockLabel - Optional label of the weight block.
  * @returns True if the controller should be disabled, false otherwise.
  */
-export const disabled = (state: context.BasicState, blockLabel: string | undefined = undefined) => {
+export const disabled = (state: globalState.BasicState, blockLabel: string | undefined = undefined) => {
     if (state.uiState.isWaiting) {
         return true;
     }

@@ -1,18 +1,17 @@
+import * as globalState from '@/shared/state/global-weight-helper-state';
 import { LoraBlockTypes, ModelTypes } from '@/shared/types/lora-types';
-
-import * as context from '@/components/contexts/weight-helper-context';
 
 const _metadataCacheStore: Record<
     string,
     {
-        metadataState: context.MetadataState | undefined;
+        metadataState: globalState.MetadataState | undefined;
         selectedLoraBlockType: LoraBlockTypes;
         selectedModelType: ModelTypes;
         usingBlocks: Set<string> | undefined;
     }
 > = {};
 
-const _previewCacheStore: Record<string, context.PreviewState> = {};
+const _previewCacheStore: Record<string, globalState.PreviewState> = {};
 
 /**
  * Retrieves the metadata cache for the given LoRA name.
@@ -21,7 +20,7 @@ const _previewCacheStore: Record<string, context.PreviewState> = {};
  */
 export function getMetadataCache(loraName: string):
     | {
-          metadataState: context.MetadataState | undefined;
+          metadataState: globalState.MetadataState | undefined;
           selectedLoraBlockType: LoraBlockTypes;
           selectedModelType: ModelTypes;
           usingBlocks: Set<string> | undefined;
@@ -35,7 +34,7 @@ export function getMetadataCache(loraName: string):
  * @param loraName - The name of the LoRA model.
  * @param cache - The BasicState containing metadata and related info to cache.
  */
-export function setMetadataCache(loraName: string, cache: context.BasicState) {
+export function setMetadataCache(loraName: string, cache: globalState.BasicState) {
     _metadataCacheStore[loraName] = {
         metadataState: cache.metadataState,
         selectedLoraBlockType: cache.weightState.selectedLoraBlockType,
@@ -49,7 +48,7 @@ export function setMetadataCache(loraName: string, cache: context.BasicState) {
  * @param loraName - The name of the LoRA model.
  * @returns The cached PreviewState, or undefined if not cached.
  */
-export function getPreviewCache(loraName: string): context.PreviewState | undefined {
+export function getPreviewCache(loraName: string): globalState.PreviewState | undefined {
     return _previewCacheStore[loraName];
 }
 
@@ -58,6 +57,6 @@ export function getPreviewCache(loraName: string): context.PreviewState | undefi
  * @param loraName - The name of the LoRA model.
  * @param cache - The PreviewState to cache.
  */
-export function setPreviewCache(loraName: string, cache: context.PreviewState) {
+export function setPreviewCache(loraName: string, cache: globalState.PreviewState) {
     _previewCacheStore[loraName] = cache;
 }

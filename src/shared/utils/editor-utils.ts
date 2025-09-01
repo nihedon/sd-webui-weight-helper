@@ -2,11 +2,10 @@ import * as cacheManager from '@/shared/manager/cache-manager';
 import * as configManager from '@/shared/manager/config-manager';
 import * as historyManager from '@/shared/manager/history-manager';
 import * as currentState from '@/shared/state/current-state';
+import * as globalState from '@/shared/state/global-weight-helper-state';
 import { ModelTypes, WeightControllerTypes } from '@/shared/types/lora-types';
 import { withoutPromptAssist } from '@/shared/utils/common-utils';
 import { lower } from '@/shared/utils/helper-utils';
-
-import * as context from '@/components/contexts/weight-helper-context';
 
 const REGEX = /<(lora|lyco):([^:]+):([^>]+)>/;
 
@@ -29,7 +28,7 @@ export function getLoraDefineFromEditor(e: MouseEvent):
       }
     | undefined {
     const textarea = e.target as HTMLTextAreaElement;
-    if (!window.opts.weight_helper_enabled) {
+    if (!opts.weight_helper_enabled) {
         return undefined;
     }
     let selectedText = window.getSelection()?.toString();
@@ -110,7 +109,7 @@ export function updateEditorWithExecCommand(updatedText: string): void {
  */
 export function getOutputStrings(
     loraName: string,
-    weightState: context.WeightState,
+    weightState: globalState.WeightState,
 ): {
     loraParams: string;
     loraDefine: string;
@@ -194,9 +193,9 @@ export function getOutputStrings(
  * @param state - The current Weight Helper state.
  * @param cancel - When true, cancels changes and restores the original editor content.
  */
-export function syncEditorWithState(state: context.BasicState, cancel: boolean = false): void {
+export function syncEditorWithState(state: globalState.BasicState, cancel: boolean = false): void {
     const outputStrings = getOutputStrings(state.loraName, state.weightState);
-    if (!window.opts.weight_helper_using_execCommand) {
+    if (!opts.weight_helper_using_execCommand) {
         if (cancel) {
             updateEditor(currentState.getLoraDefineString());
         }

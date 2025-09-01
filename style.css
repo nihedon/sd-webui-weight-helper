@@ -237,6 +237,27 @@
     border-radius: 6px;
     box-shadow: 0px 0px 7px 0 var(--weight-helper-shadow);
 }
+
+/* Preview positioning classes */
+#weight-helper .preview-pane.preview-top-right {
+    top: 0;
+    left: calc(100% + 6px);
+}
+
+#weight-helper .preview-pane.preview-bottom-right {
+    bottom: 0;
+    left: calc(100% + 6px);
+}
+
+#weight-helper .preview-pane.preview-top-left {
+    top: 0;
+    right: calc(100% + 6px);
+}
+
+#weight-helper .preview-pane.preview-bottom-left {
+    bottom: 0;
+    right: calc(100% + 6px);
+}
 #weight-helper .preview-pane:hover .action-row {
     visibility: visible;
 }

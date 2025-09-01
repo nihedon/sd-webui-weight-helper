@@ -1,8 +1,7 @@
 import * as configManager from '@/shared/manager/config-manager';
+import * as globalState from '@/shared/state/global-weight-helper-state';
 import { WeightControllerTypes } from '@/shared/types/lora-types';
 import { expandRange } from '@/shared/utils/helper-utils';
-
-import * as context from '@/components/contexts/weight-helper-context';
 
 /**
  * Merges the current weights with the given block groups.
@@ -13,9 +12,9 @@ import * as context from '@/components/contexts/weight-helper-context';
  * @returns The updated record of block weights including all blocks from the groups.
  */
 export function mergeWeightsWithGroups(
-    currentWeights: Record<string, context.WeightControlState>,
+    currentWeights: Record<string, globalState.WeightControlState>,
     groups: string[][],
-): Record<string, context.WeightControlState> {
+): Record<string, globalState.WeightControlState> {
     const updatedWeights = { ...currentWeights };
 
     const allBlocks: string[] = [];
