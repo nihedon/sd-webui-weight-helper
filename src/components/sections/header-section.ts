@@ -1,39 +1,38 @@
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { h } from 'preact';
-
-import { useRef } from 'preact/hooks';
-
 import * as historyManager from '@/shared/manager/history-manager';
+import * as globalState from '@/shared/state/global-weight-helper-state';
 import { getPreset } from '@/shared/utils/common-utils';
 import { getDisplayStyle, getVisibilityStyle } from '@/shared/utils/helper-utils';
 import { createLoraParamsState } from '@/shared/utils/state-utils';
 
-import * as context from '@/components/contexts/weight-helper-context';
+import { TemplateResult, html } from 'lit-html';
+
+// ドラッグ状態を管理するグローバル変数
+let isDragging = false;
+let offset = { x: 0, y: 0 };
 
 /**
  * HeaderSection component displays the title bar of the Weight Helper.
  * Provides LoRA name display, lock toggle, and history navigation controls.
  * @param loraName - The name of the LoRA model.
  * @param lock - The current lock status.
- * @returns The HeaderSection component.
+ * @returns The HeaderSection template.
  */
-export const HeaderSection = ({ loraName, lock }: { loraName: string; lock: boolean }) => {
-    const { state, dispatch } = context.useWeightHelper();
-
+export function createHeaderSection(loraName: string, lock: boolean): TemplateResult {
+    const state = globalState.getGlobalState();
     const histories = historyManager.getHistories(state.loraName);
-
-    const isDragging = useRef(false);
-    const offset = useRef({ x: 0, y: 0 });
 
     /**
      * Handles the mouse down event for dragging the header.
      * @param e - The mouse event.
      */
     const handleMouseDown = (e: MouseEvent) => {
-        isDragging.current = true;
-        offset.current = {
-            x: e.clientX - state.uiState.pos.left + window.scrollX,
-            y: e.clientY - state.uiState.pos.top + window.scrollY,
+        isDragging = true;
+        const el = document.getElementById('weight-helper');
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        offset = {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
         };
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
@@ -45,12 +44,12 @@ export const HeaderSection = ({ loraName, lock }: { loraName: string; lock: bool
      * @param e - The mouse event.
      */
     const handleMouseMove = (e: MouseEvent) => {
-        if (!isDragging.current) return;
+        if (!isDragging) return;
 
-        const x = e.clientX - offset.current.x + window.scrollX;
-        const y = e.clientY - offset.current.y + window.scrollY;
+        const x = e.clientX - offset.x + window.scrollX;
+        const y = e.clientY - offset.y + window.scrollY;
 
-        dispatch({ type: 'SET_POSITION', payload: { top: y, left: x } });
+        globalState.setPosition(y, x);
     };
 
     /**
@@ -58,7 +57,7 @@ export const HeaderSection = ({ loraName, lock }: { loraName: string; lock: bool
      * Removes the event listeners for mouse move and mouse up.
      */
     const handleMouseUp = () => {
-        isDragging.current = false;
+        isDragging = false;
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
     };
@@ -68,7 +67,7 @@ export const HeaderSection = ({ loraName, lock }: { loraName: string; lock: bool
      * Clears the history of the Weight Helper.
      */
     const handleClearHistory = () => {
-        dispatch({ type: 'CLEAR_HISTORY' });
+        globalState.clearHistory();
     };
 
     /**
@@ -76,7 +75,7 @@ export const HeaderSection = ({ loraName, lock }: { loraName: string; lock: bool
      * Toggles the lock status for the current LoRA and loraParams.
      */
     const handleToggleLockStatus = () => {
-        dispatch({ type: 'TOGGLE_LOCK_STATUS' });
+        globalState.toggleLockStatus();
     };
 
     /**
@@ -89,7 +88,7 @@ export const HeaderSection = ({ loraName, lock }: { loraName: string; lock: bool
         const loraParams = createLoraParamsState(history.loraParams, history.selectedModelType, history.selectedLoraBlockType);
         const locked = historyManager.isLocked(state.loraName, history.loraParams);
         const preset = getPreset(history.selectedModelType, history.selectedLoraBlockType, state.lbwPresets, loraParams.weights);
-        dispatch({ type: 'SET_HISTORY', payload: { historyIndex: newIndex, weightState: loraParams, locked: locked, preset: preset } });
+        globalState.setHistory({ historyIndex: newIndex, weightState: loraParams, locked: locked, preset: preset });
     };
 
     /**
@@ -102,33 +101,29 @@ export const HeaderSection = ({ loraName, lock }: { loraName: string; lock: bool
         const loraParams = createLoraParamsState(history.loraParams, history.selectedModelType, history.selectedLoraBlockType);
         const locked = historyManager.isLocked(state.loraName, history.loraParams);
         const preset = getPreset(history.selectedModelType, history.selectedLoraBlockType, state.lbwPresets, loraParams.weights);
-        dispatch({ type: 'SET_HISTORY', payload: { historyIndex: newIndex, weightState: loraParams, locked: locked, preset: preset } });
+        globalState.setHistory({ historyIndex: newIndex, weightState: loraParams, locked: locked, preset: preset });
     };
 
-    return (
-        <header onMouseDown={handleMouseDown}>
+    return html`
+        <header @mousedown=${handleMouseDown}>
             <span>
-                <span className={`lock ${lock ? 'like' : 'unlike'}`} style={getVisibilityStyle(!state.weightState.xyzMode)} onClick={handleToggleLockStatus}>
+                <span class="lock ${lock ? 'like' : 'unlike'}" style="${getVisibilityStyle(!state.weightState.xyzMode)}" @click=${handleToggleLockStatus}>
                     <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                        <path d="M21,10H19V7A7,7,0,0,0,5,7v3H3a1,1,0,0,0-1,1v9a4,4,0,0,0,4,4H18a4,4,0,0,0,4-4V11A1,1,0,0,0,21,10Zm-9,9.5A2.5,2.5,0,1,1,14.5,17,2.5,2.5,0,0,1,12,19.5ZM15,10H9V7a3,3,0,0,1,6,0v3Z"></path>
+                        <path
+                            d="M21,10H19V7A7,7,0,0,0,5,7v3H3a1,1,0,0,0-1,1v9a4,4,0,0,0,4,4H18a4,4,0,0,0,4-4V11A1,1,0,0,0,21,10Zm-9,9.5A2.5,2.5,0,1,1,14.5,17,2.5,2.5,0,0,1,12,19.5ZM15,10H9V7a3,3,0,0,1,6,0v3Z"
+                        ></path>
                     </svg>
                 </span>
-                <label className="name">{loraName}</label>
+                <label class="name">${loraName}</label>
             </span>
-            <div className="history" style={getDisplayStyle(histories.length > 1)}>
-                <a className="icon" onClick={handleClearHistory}>
-                    clear
-                </a>
-                <div className="page">
-                    <a className="icon" onClick={handlePrevHistory} style={getVisibilityStyle(state.historyIndex > 0)}>
-                        &lt;
-                    </a>
-                    <label className="page-label">{state.historyIndex + 1 + '/' + histories.length}</label>
-                    <a className="icon" onClick={handleNextHistory} style={getVisibilityStyle(state.historyIndex < histories.length - 1)}>
-                        &gt;
-                    </a>
+            <div class="history" style="${getDisplayStyle(histories.length > 1)}">
+                <a class="icon" @click=${handleClearHistory}>clear</a>
+                <div class="page">
+                    <a class="icon" @click=${handlePrevHistory} style="${getVisibilityStyle(state.historyIndex > 0)}">&lt;</a>
+                    <label class="page-label">${state.historyIndex + 1}/${histories.length}</label>
+                    <a class="icon" @click=${handleNextHistory} style="${getVisibilityStyle(state.historyIndex < histories.length - 1)}">&gt;</a>
                 </div>
             </div>
         </header>
-    );
-};
+    `;
+}

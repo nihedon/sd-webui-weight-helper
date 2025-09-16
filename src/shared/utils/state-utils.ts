@@ -3,19 +3,18 @@ import * as cacheManager from '@/shared/manager/cache-manager';
 import * as configManager from '@/shared/manager/config-manager';
 import * as historyManager from '@/shared/manager/history-manager';
 import * as currentState from '@/shared/state/current-state';
+import * as globalState from '@/shared/state/global-weight-helper-state';
 import * as loraTypes from '@/shared/types/lora-types';
 import { LoraDefineParams, WeightControllerTypes } from '@/shared/types/lora-types';
 import { getPreset } from '@/shared/utils/common-utils';
 import { getOutputStrings } from '@/shared/utils/editor-utils';
 
-import * as context from '@/components/contexts/weight-helper-context';
-
 /**
  * Creates and returns the initial state for the Weight Helper UI.
  * @returns The initial BasicState object for the Weight Helper.
  */
-export function createWeightHelperInitState() {
-    const weightHelperProps: context.BasicState = {
+export function createWeightHelperInitState(): globalState.BasicState {
+    const weightHelperProps: globalState.BasicState = {
         loraName: '',
         metadataState: undefined,
         srcLoraParams: '',
@@ -33,12 +32,6 @@ export function createWeightHelperInitState() {
         uiState: {
             isVisible: false,
             scale: 1,
-            pos: {
-                top: 0,
-                right: 0,
-                bottom: 0,
-                left: 0,
-            },
             isMoreButtonVisible: true,
             isWaiting: false,
         },
@@ -68,7 +61,7 @@ export function createWeightHelperInitState() {
  * @param left - The left position for the UI.
  * @returns The constructed BasicState object.
  */
-export function createWeightHelperState(namespace: string, loraName: string, loraParams: string, top: number, left: number): context.BasicState {
+export function createWeightHelperState(namespace: string, loraName: string, loraParams: string): globalState.BasicState {
     let selectedModelType: loraTypes.ModelTypes = loraTypes.ModelTypes.Unknown;
     let selectedLoraBlockType: loraTypes.LoraBlockTypes = loraTypes.LoraBlockTypes.Unknown;
     const histories = historyManager.getHistories(loraName);
@@ -78,7 +71,7 @@ export function createWeightHelperState(namespace: string, loraName: string, lor
         selectedLoraBlockType = latest.selectedLoraBlockType ?? loraTypes.LoraBlockTypes.Unknown;
     }
 
-    let metadataState: context.MetadataState | undefined;
+    let metadataState: globalState.MetadataState | undefined;
     let usingBlocks: Set<string> | undefined;
     const metadataCache = cacheManager.getMetadataCache(loraName);
     if (metadataCache) {
@@ -94,6 +87,7 @@ export function createWeightHelperState(namespace: string, loraName: string, lor
 
     const outputLoraParams = getOutputStrings(loraName, weightState).loraParams;
 
+    // Determine if the "show more options" button should appear (hidden when any advanced param differs)
     let isMoreButtonVisible = false;
     for (const keyType of [WeightControllerTypes.UNET, WeightControllerTypes.START, WeightControllerTypes.STOP]) {
         const weight = weightState.weights[keyType];
@@ -114,15 +108,9 @@ export function createWeightHelperState(namespace: string, loraName: string, lor
         usingBlocks: usingBlocks,
         uiState: {
             isVisible: true,
-            scale: window.opts.weight_helper_context_menu_scale,
+            scale: opts.weight_helper_context_menu_scale,
             isMoreButtonVisible: isMoreButtonVisible,
             isWaiting: !metadataState,
-            pos: {
-                top: top,
-                right: 0,
-                bottom: 0,
-                left: left,
-            },
         },
         previewState: createPreviewState(loraName),
         preset: getPreset(weightState.selectedModelType, weightState.selectedLoraBlockType, lbwPresets, weightState.weights),
@@ -148,7 +136,7 @@ export function createWeightState(
 ): {
     selectedLoraBlockType: loraTypes.LoraBlockTypes;
     selectedModelType: loraTypes.ModelTypes;
-    weights: Record<string, context.WeightControlState>;
+    weights: Record<string, globalState.WeightControlState>;
     lbwe: string;
     xyzMode: boolean;
 } {
@@ -182,7 +170,7 @@ export function createLoraParamsState(
 ): {
     selectedModelType: loraTypes.ModelTypes;
     selectedLoraBlockType: loraTypes.LoraBlockTypes;
-    weights: Record<string, context.WeightControlState>;
+    weights: Record<string, globalState.WeightControlState>;
     lbwe: string;
     xyzMode: boolean;
 } {
@@ -285,13 +273,14 @@ export function createLoraParamsState(
         }
     });
 
+    // Flag indicating whether UNET weight was explicitly specified
     let useUnet = true;
     if (unet === undefined) {
         unet = configManager.getWeightControllerConfig(WeightControllerTypes.UNET).default;
         useUnet = false;
     }
 
-    const lbws: Record<string, context.WeightControlState> = {};
+    const lbws: Record<string, globalState.WeightControlState> = {};
     if (modelType !== loraTypes.ModelTypes.Unknown) {
         const blocks = configManager.getLbwBlocks(modelType);
         if (lbwVals.length === 0) {
@@ -351,7 +340,7 @@ export function createLoraParamsState(
  * @param loraName - The name of the LoRA model.
  * @returns The PreviewState object for the given LoRA model.
  */
-function createPreviewState(loraName: string): context.PreviewState {
+function createPreviewState(loraName: string): globalState.PreviewState {
     const previewCache = cacheManager.getPreviewCache(loraName);
     if (previewCache) {
         return previewCache;

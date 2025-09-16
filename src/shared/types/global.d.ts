@@ -32,6 +32,8 @@ declare global {
             weight_helper_LBW_SDXL_lora_block_points: string;
 
             weight_helper_LBW_SDXL_lycoris_block_points: string;
+
+            [key: string]: unknown;
         };
         TAC_CFG: {
             activeIn: {
@@ -41,6 +43,8 @@ declare global {
         pilotIsActive: boolean | undefined;
     }
     function gradioApp(): Document;
+
+    const opts: Window['opts'];
 }
 
 export {};

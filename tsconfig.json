@@ -12,9 +12,6 @@
     "paths": {
       "@/*": ["*"]
     },
-    "jsx": "react",
-    "jsxFactory": "h",
-    "jsxFragmentFactory": "Fragment",
     "removeComments": true,
     "moduleResolution": "node",
     "esModuleInterop": true,
@@ -34,6 +31,6 @@
     "noFallthroughCasesInSwitch": true,
     "declaration": false
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules"]
 }

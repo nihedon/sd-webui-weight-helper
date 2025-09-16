@@ -1,29 +1,25 @@
-import { Fragment, h } from 'preact';
-
 import { getEditor, getTabId } from '@/shared/state/current-state';
+import * as globalState from '@/shared/state/global-weight-helper-state';
 import { withoutPromptAssist } from '@/shared/utils/common-utils';
 import { getDisplayStyle, getVisibilityStyle } from '@/shared/utils/helper-utils';
 
-import * as context from '@/components/contexts/weight-helper-context';
+import { TemplateResult, html } from 'lit-html';
 
 declare function extraNetworksRequestMetadata(e: Event, type: string, modelName: string): void;
 declare function extraNetworksEditUserMetadata(e: Event, tabId: string, type: string, modelName: string): void;
 
 /**
- * PreviewSection component displays information about the selected model.
+ * PreviewSection creates information display about the selected model.
  * Shows preview image, metadata actions, trigger word insertion buttons, and model description.
  * @param preview - The preview state containing model information.
- * @param topComponent - Reference to the top-level component for positioning.
- * @returns The PreviewSection component.
+ * @returns The PreviewSection template.
  */
-export const PreviewSection = ({ preview, topComponent }: { preview: context.PreviewState; topComponent: HTMLDivElement | null }) => {
-    const { state, dispatch } = context.useWeightHelper();
-
+export function createPreviewSection(preview: globalState.PreviewState): TemplateResult {
     /**
      * Handles the click event to show internal metadata for the model.
      * @param e - The click event.
      */
-    const handleShowMetadata = (e: h.JSX.TargetedEvent<HTMLDivElement, Event>) => {
+    const handleShowMetadata = (e: Event) => {
         extraNetworksRequestMetadata(e, 'lora', preview.modelName);
     };
 
@@ -31,8 +27,8 @@ export const PreviewSection = ({ preview, topComponent }: { preview: context.Pre
      * Handles the click event to edit user metadata for the model.
      * @param e - The click event.
      */
-    const handleEditMetadata = (e: h.JSX.TargetedEvent<HTMLDivElement, Event>) => {
-        extraNetworksEditUserMetadata(e, getTabId(), 'lora', state.previewState.modelName);
+    const handleEditMetadata = (e: Event) => {
+        extraNetworksEditUserMetadata(e, getTabId(), 'lora', preview.modelName);
     };
 
     /**
@@ -46,20 +42,14 @@ export const PreviewSection = ({ preview, topComponent }: { preview: context.Pre
      * Handles the click event to show the preview description.
      */
     const handleOpenPreviewDescription = () => {
-        dispatch({
-            type: 'SET_PREVIEW_DESCRIPTION_VISIBLE',
-            payload: true,
-        });
+        globalState.setPreviewDescriptionVisible(true);
     };
 
     /**
      * Handles the click event to close the preview description.
      */
     const handleClosePreviewDescription = () => {
-        dispatch({
-            type: 'SET_PREVIEW_DESCRIPTION_VISIBLE',
-            payload: false,
-        });
+        globalState.setPreviewDescriptionVisible(false);
     };
 
     /**
@@ -76,7 +66,7 @@ export const PreviewSection = ({ preview, topComponent }: { preview: context.Pre
             promptTextarea = textarea;
             negativeTextarea = undefined;
         }
-        if (!window.opts.weight_helper_using_execCommand) {
+        if (!opts.weight_helper_using_execCommand) {
             const insert = () => {
                 const zipped = [
                     { triggerWords: preview.triggerWords, textarea: promptTextarea },
@@ -112,69 +102,66 @@ export const PreviewSection = ({ preview, topComponent }: { preview: context.Pre
                 insert();
             });
         }
-        dispatch({
-            type: 'HIDE_TAG_INSERT_BUTTON',
-        });
+        globalState.hideTagInsertButton();
     };
 
-    const clientWidth = +(topComponent?.clientWidth || 0);
-    const margin = 6;
-    const pos: Record<string, string> = {};
-    switch (window.opts.weight_helper_preview_position) {
+    const classNames = ['preview-pane', 'card'];
+
+    // position based on settings
+    switch (opts.weight_helper_preview_position) {
         case 'Bottom Right':
-            pos.bottom = 0 + 'px';
-            pos.left = clientWidth + margin + 'px';
+            classNames.push('preview-bottom-right');
             break;
         case 'Top Left':
-            pos.top = 0 + 'px';
-            pos.right = clientWidth - margin + 'px';
+            classNames.push('preview-top-left');
             break;
         case 'Bottom Left':
-            pos.right = clientWidth - margin + 'px';
-            pos.bottom = 0 + 'px';
+            classNames.push('preview-bottom-left');
             break;
         default:
-            pos.top = 0 + 'px';
-            pos.left = clientWidth + margin + 'px';
+            classNames.push('preview-top-right');
             break;
     }
 
-    return (
-        <div className="preview-pane card" data-name={preview.modelName} style={{ ...pos }}>
-            <img className="preview" src={preview.thumbUrl} style={{ height: `${window.opts.weight_helper_preview_height}px` }} />
-            <div className="action-row button-top" style={getVisibilityStyle(!preview.isDescriptionVisible)}>
-                {preview.modelName && preview.hasMetadata && typeof extraNetworksRequestMetadata === 'function' && (
-                    <div className="metadata-btn card-btn" title="Show internal metadata" onClick={handleShowMetadata}></div>
-                )}
-                {preview.modelName && typeof extraNetworksEditUserMetadata === 'function' && (
-                    <div className="edit-btn card-btn" title="Edit metadata" onClick={handleEditMetadata}></div>
-                )}
-                {preview.modelId && <div className="civitai-btn card-btn" title="Open civitai" onClick={handleOpenCivitai}></div>}
-                {(preview.triggerWords.length > 0 || preview.negativeTriggerWords.length > 0) && (
-                    <div
-                        className="add-trigger-btn card-btn"
-                        title="Add trigger words"
-                        onClick={handleInsertTriggerWords}
-                        style={getDisplayStyle(preview.isTagInsertButtonVisible)}
-                    ></div>
-                )}
+    return html`
+        <div class="${classNames.join(' ')}" data-name="${preview.modelName}">
+            <img class="preview" src="${preview.thumbUrl}" style="height: ${opts.weight_helper_preview_height}px" />
+            <div class="action-row button-top" style="${getVisibilityStyle(!preview.isDescriptionVisible)}">
+                ${preview.modelName && preview.hasMetadata && typeof extraNetworksRequestMetadata === 'function'
+                    ? html` <div class="metadata-btn card-btn" title="Show internal metadata" @click="${handleShowMetadata}"></div> `
+                    : ''}
+                ${preview.modelName && typeof extraNetworksEditUserMetadata === 'function'
+                    ? html` <div class="edit-btn card-btn" title="Edit metadata" @click="${handleEditMetadata}"></div> `
+                    : ''}
+                ${preview.modelId ? html` <div class="civitai-btn card-btn" title="Open civitai" @click="${handleOpenCivitai}"></div> ` : ''}
+                ${preview.triggerWords.length > 0 || preview.negativeTriggerWords.length > 0
+                    ? html`
+                          <div
+                              class="add-trigger-btn card-btn"
+                              title="Add trigger words"
+                              @click="${handleInsertTriggerWords}"
+                              style="${getDisplayStyle(preview.isTagInsertButtonVisible)}"
+                          ></div>
+                      `
+                    : ''}
             </div>
 
-            {preview.description && (
-                <Fragment>
-                    <div className="action-row button-bottom" style={getVisibilityStyle(!preview.isDescriptionVisible)}>
-                        <div className="card-btn note-btn" onClick={handleOpenPreviewDescription}></div>
-                    </div>
-                    <textarea className="description" style={getVisibilityStyle(preview.isDescriptionVisible)}>
-                        {preview.description}
-                    </textarea>
-                    <div
-                        className="card-btn description-close-btn"
-                        style={getVisibilityStyle(preview.isDescriptionVisible)}
-                        onClick={handleClosePreviewDescription}
-                    ></div>
-                </Fragment>
-            )}
+            ${preview.description
+                ? html`
+                      <div class="action-row button-bottom" style="${getVisibilityStyle(!preview.isDescriptionVisible)}">
+                          <div class="card-btn note-btn" @click="${handleOpenPreviewDescription}"></div>
+                      </div>
+                      <textarea class="description" style="${getVisibilityStyle(preview.isDescriptionVisible)}">
+                    ${preview.description}
+                </textarea
+                      >
+                      <div
+                          class="card-btn description-close-btn"
+                          style="${getVisibilityStyle(preview.isDescriptionVisible)}"
+                          @click="${handleClosePreviewDescription}"
+                      ></div>
+                  `
+                : ''}
         </div>
-    );
-};
+    `;
+}

@@ -1,8 +1,9 @@
 import * as configManager from '@/shared/manager/config-manager';
 import * as historyManager from '@/shared/manager/history-manager';
+import * as globalState from '@/shared/state/global-weight-helper-state';
 import { createWeightHelperInitState } from '@/shared/utils/state-utils';
 
-import * as context from '@/components/contexts/weight-helper-context';
+import { renderUI } from '@/components/ui-template';
 
 declare function gradioApp(): HTMLElement;
 declare function onUiLoaded(callback: VoidFunction): void;
@@ -39,7 +40,7 @@ onUiLoaded(() => {
         .map((hex) => parseInt(hex, 16));
     const textColorRgba = [...textColorRgb, 0.3];
     document.documentElement.style.setProperty('--weight-helper-shadow', `rgba(${textColorRgba.join(',')})`);
-    document.documentElement.style.setProperty('--weight-helper-slider_size', String(window.opts.weight_helper_slider_length));
+    document.documentElement.style.setProperty('--weight-helper-slider_size', String(opts.weight_helper_slider_length));
 
     initializedPromise.then(() => {
         const weightHelperContainer = document.createElement('div');
@@ -47,7 +48,8 @@ onUiLoaded(() => {
         gradioApp().appendChild(weightHelperContainer);
 
         configManager.initialize();
-        context.initialize(createWeightHelperInitState());
+        globalState.initializeGlobalState(createWeightHelperInitState());
+        renderUI(weightHelperContainer);
     });
 });
 

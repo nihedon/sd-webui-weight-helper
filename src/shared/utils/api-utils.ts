@@ -1,6 +1,5 @@
+import * as globalState from '@/shared/state/global-weight-helper-state';
 import { ModelTypes } from '@/shared/types/lora-types';
-
-import * as context from '@/components/contexts/weight-helper-context';
 
 /**
  * Fetches metadata for the specified LoRA model from the backend API.
@@ -30,7 +29,7 @@ export async function fetchMetadata(
  * @param signal - Optional AbortSignal for canceling the request.
  * @returns A promise resolving to the PreviewState object.
  */
-export async function fetchPreviewData(loraName: string, signal?: AbortSignal): Promise<context.PreviewState> {
+export async function fetchPreviewData(loraName: string, signal?: AbortSignal): Promise<globalState.PreviewState> {
     const res = await fetch(`/whapi/v1/get_preview_info?key=${encodeURIComponent(loraName)}`, {
         method: 'POST',
         signal: signal,

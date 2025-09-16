@@ -72,7 +72,7 @@ const lbwGroupConfig = {
 
 /**
  * Initializes the configuration for block groups and weight controllers.
- * Updates configuration values with settings from window.opts.
+ * Updates configuration values with settings from opts.
  */
 export function initialize() {
     const optBlockPattern = /((BASE|MID|M00|CLIP|T5|(IN|OUT|D|S)[0-9]{2}(-(IN|OUT|D|S)[0-9]{2})?) *(, *|$))+/;
@@ -81,7 +81,7 @@ export function initialize() {
         for (const loraBlockType of Object.values(SELECTABLE_LORA_BLOCK_TYPES)) {
             if (loraBlockType === LoraBlockTypes.Unknown) continue;
             try {
-                let optBlockPoints = window.opts[`weight_helper_LBW_${modelType}_${loraBlockType}_block_points`] as string;
+                let optBlockPoints = opts[`weight_helper_LBW_${modelType}_${loraBlockType}_block_points`] as string;
                 optBlockPoints = optBlockPoints.replace('MID', 'M00');
                 if (optBlockPattern.exec(optBlockPoints)) {
                     const blockPoints = optBlockPoints.split(',').map((v) => {
@@ -96,9 +96,9 @@ export function initialize() {
     }
 
     for (const k of [WeightControllerTypes.TENC, WeightControllerTypes.UNET, WeightControllerTypes.LBW]) {
-        WeightControllerConfig[k].min = +window.opts[`weight_helper_${k}_min`];
-        WeightControllerConfig[k].max = +window.opts[`weight_helper_${k}_max`];
-        WeightControllerConfig[k].step = +window.opts[`weight_helper_${k}_step`];
+        WeightControllerConfig[k].min = +opts[`weight_helper_${k}_min`];
+        WeightControllerConfig[k].max = +opts[`weight_helper_${k}_max`];
+        WeightControllerConfig[k].step = +opts[`weight_helper_${k}_step`];
     }
 }
 
